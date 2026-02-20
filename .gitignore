@@ -1,0 +1,22 @@
+# Build outputs
+build/
+out/
+
+# Gradle
+.gradle/
+gradle/wrapper/gradle-wrapper.jar
+
+# IDE
+.idea/
+*.iml
+
+# Compiled class files in tools
+tools/*.class
+
+# Deploy script (contains local paths)
+deploy.sh
+
+# Save files
+hamster_save*.properties
+hamster_auto_save.properties
+meta.properties
