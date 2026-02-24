@@ -42,6 +42,11 @@ public class HamsterWindow extends JWindow {
     }
 
     public void tick() {
+        if (hamster.isFrozen()) {
+            hamsterPanel.repaint();
+            return;
+        }
+
         hamster.update();
 
         // Handle window resize for wheel state transitions

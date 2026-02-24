@@ -9,7 +9,7 @@ import java.util.List;
 public class ControlPanel extends JFrame {
 
     private static final String FONT_NAME = "Noto Sans KR";
-    public static final String VERSION = "2.0.1";
+    public static final String VERSION = "2.0.2";
 
     /** Wraps emoji characters in HTML with Segoe UI Emoji font for proper rendering. */
     static String wrapEmoji(String text) {
@@ -27,8 +27,13 @@ public class ControlPanel extends JFrame {
             char c = text.charAt(i);
             if (Character.isHighSurrogate(c) && i + 1 < text.length()) {
                 sb.append("<span style='font-family:Segoe UI Emoji'>")
-                  .append(c).append(text.charAt(i + 1)).append("</span>");
+                  .append(c).append(text.charAt(i + 1));
                 i++;
+                // Include variation selector if present
+                if (i + 1 < text.length() && text.charAt(i + 1) == '\uFE0F') {
+                    sb.append(text.charAt(++i));
+                }
+                sb.append("</span>");
             } else if (c == '\u2B50' || c == '\u2600' || c == '\u2699') {
                 sb.append("<span style='font-family:Segoe UI Emoji'>").append(c);
                 if (i + 1 < text.length() && text.charAt(i + 1) == '\uFE0F') {
@@ -61,12 +66,14 @@ public class ControlPanel extends JFrame {
         void onShowAchievements();
         void onShowJournal();
         void onShowStatistics();
+        void onEquipAccessory(Hamster h);
     }
 
     private List<Hamster> hamsters;
     private final Callbacks callbacks;
     private final JPanel mainPanel;
     private JLabel moneyLabel;
+    private JLabel seedLabel;
     private JLabel poopLabel;
     private List<HamsterUI> hamsterUIs = new ArrayList<>();
     private int initialOpacity = 100;
@@ -143,11 +150,40 @@ public class ControlPanel extends JFrame {
 
         // Money display
         mainPanel.add(createSeparator());
+        JPanel currencyPanel = new JPanel(new BorderLayout());
+        currencyPanel.setOpaque(false);
+        currencyPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JPanel currencyLabels = new JPanel();
+        currencyLabels.setLayout(new BoxLayout(currencyLabels, BoxLayout.Y_AXIS));
+        currencyLabels.setOpaque(false);
+
         moneyLabel = new JLabel(wrapEmoji("\uD83D\uDCB0 0 코인"));
         moneyLabel.setFont(new Font(FONT_NAME, Font.BOLD, 14));
         moneyLabel.setForeground(new Color(180, 140, 20));
-        moneyLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
-        mainPanel.add(moneyLabel);
+        currencyLabels.add(moneyLabel);
+
+        seedLabel = new JLabel(wrapEmoji("\uD83C\uDF3B 0 해바라기씨"));
+        seedLabel.setFont(new Font(FONT_NAME, Font.BOLD, 14));
+        seedLabel.setForeground(new Color(120, 80, 20));
+        currencyLabels.add(seedLabel);
+
+        currencyPanel.add(currencyLabels, BorderLayout.CENTER);
+
+        JButton settingsBtn = new JButton(wrapEmoji("\u2699"));
+        settingsBtn.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
+        settingsBtn.setPreferredSize(new Dimension(32, 32));
+        settingsBtn.setBackground(new Color(230, 225, 215));
+        settingsBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(180, 170, 150), 1, true),
+                BorderFactory.createEmptyBorder(1, 4, 1, 4)
+        ));
+        settingsBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        settingsBtn.setToolTipText("\uC124\uC815");
+        settingsBtn.addActionListener(e -> callbacks.onOpenSettings());
+        currencyPanel.add(settingsBtn, BorderLayout.EAST);
+
+        mainPanel.add(currencyPanel);
 
         // Hamster sections
         for (Hamster h : hamsters) {
@@ -194,47 +230,24 @@ public class ControlPanel extends JFrame {
 
         mainPanel.add(bottomBtns);
 
-        // 2.0 buttons row
-        JPanel newBtns = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
+        // 2.0 buttons row (same size as shop/breed/upgrade)
+        JPanel newBtns = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
         newBtns.setOpaque(false);
         newBtns.setAlignmentX(Component.LEFT_ALIGNMENT);
 
-        JButton achBtn = createSmallButton("\uC5C5\uC801", new Color(255, 230, 180), e -> callbacks.onShowAchievements());
+        JButton achBtn = createButton("\uC5C5\uC801", new Color(255, 230, 180), e -> callbacks.onShowAchievements());
         achBtn.setToolTipText("\uC5C5\uC801 \uBAA9\uB85D \uBCF4\uAE30");
         newBtns.add(achBtn);
 
-        JButton journalBtn = createSmallButton("\uB3C4\uAC10", new Color(220, 240, 255), e -> callbacks.onShowJournal());
+        JButton journalBtn = createButton("\uB3C4\uAC10", new Color(220, 240, 255), e -> callbacks.onShowJournal());
         journalBtn.setToolTipText("\uD584\uC2A4\uD130 \uB3C4\uAC10 \uBCF4\uAE30");
         newBtns.add(journalBtn);
 
-        JButton statsBtn = createSmallButton("\uD1B5\uACC4", new Color(230, 255, 230), e -> callbacks.onShowStatistics());
+        JButton statsBtn = createButton("\uD1B5\uACC4", new Color(230, 255, 230), e -> callbacks.onShowStatistics());
         statsBtn.setToolTipText("\uD1B5\uACC4 \uBCF4\uAE30");
         newBtns.add(statsBtn);
 
         mainPanel.add(newBtns);
-
-        // Separator before utility
-        mainPanel.add(createSeparator());
-        mainPanel.add(Box.createVerticalStrut(4));
-
-        JPanel bottomBtns2 = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
-        bottomBtns2.setOpaque(false);
-        bottomBtns2.setAlignmentX(Component.LEFT_ALIGNMENT);
-
-        JButton settingsBtn = new JButton(wrapEmoji("\u2699"));
-        settingsBtn.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
-        settingsBtn.setPreferredSize(new Dimension(32, 26));
-        settingsBtn.setBackground(new Color(230, 225, 215));
-        settingsBtn.setBorder(BorderFactory.createCompoundBorder(
-                BorderFactory.createLineBorder(new Color(180, 170, 150), 1, true),
-                BorderFactory.createEmptyBorder(1, 4, 1, 4)
-        ));
-        settingsBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        settingsBtn.setToolTipText("\uC124\uC815");
-        settingsBtn.addActionListener(e -> callbacks.onOpenSettings());
-        bottomBtns2.add(settingsBtn);
-
-        mainPanel.add(bottomBtns2);
 
         // Utility buttons (gather, freeze, kill)
         JPanel utilBtns = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
@@ -358,6 +371,9 @@ public class ControlPanel extends JFrame {
         JPanel btnRow3 = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
         btnRow3.setOpaque(false);
         btnRow3.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JButton equipBtn = createSmallButton("\uCE58\uC7A5", new Color(255, 220, 180), e -> callbacks.onEquipAccessory(hamster));
+        equipBtn.setToolTipText("\uC545\uC138\uC11C\uB9AC \uC7A5\uCC29");
+        btnRow3.add(equipBtn);
         JButton killOneBtn = createSmallButton("\uBCF4\uB0B4\uAE30", new Color(255, 180, 180), e -> callbacks.onKillHamster(hamster));
         killOneBtn.setToolTipText("\uC774 \uD584\uC2A4\uD130\uB97C \uBCF4\uB0B4\uAE30");
         btnRow3.add(killOneBtn);
@@ -379,7 +395,7 @@ public class ControlPanel extends JFrame {
         return p;
     }
 
-    public void refresh(int poopCount, int money) {
+    public void refresh(int poopCount, int money, int seeds) {
         boolean sizeChanged = false;
         for (HamsterUI ui : hamsterUIs) {
             boolean wasLegacy = ui.legacyLabel.isVisible();
@@ -391,6 +407,7 @@ public class ControlPanel extends JFrame {
         }
         poopLabel.setText(wrapEmoji("\uD83D\uDCA9 응가: " + poopCount + "개"));
         moneyLabel.setText(wrapEmoji("\uD83D\uDCB0 " + money + " 코인"));
+        seedLabel.setText(wrapEmoji("\uD83C\uDF3B " + seeds + " 해바라기씨"));
         if (sizeChanged) {
             pack();
             if (getWidth() < 420) setSize(420, getHeight());

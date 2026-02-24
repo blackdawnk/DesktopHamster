@@ -6,27 +6,27 @@ import java.awt.image.BufferedImage;
 
 public enum Accessory {
     // HEAD
-    RED_RIBBON(Slot.HEAD, "\uBE68\uAC04 \uB9AC\uBCF8", 50, "\uADC0\uC5EC\uC6B4 \uBE68\uAC04 \uB9AC\uBCF8", 0.03),
-    BLUE_RIBBON(Slot.HEAD, "\uD30C\uB780 \uB9AC\uBCF8", 50, "\uC0C1\uCFE8\uD55C \uD30C\uB780 \uB9AC\uBCF8", 0.03),
-    TOP_HAT(Slot.HEAD, "\uC815\uC7A5 \uBAA8\uC790", 100, "\uACA9\uC2DD \uC788\uB294 \uC815\uC7A5 \uBAA8\uC790", 0.10),
-    PARTY_HAT(Slot.HEAD, "\uD30C\uD2F0 \uBAA8\uC790", 80, "\uCD95\uD558 \uD30C\uD2F0 \uBAA8\uC790", 0.05),
-    CROWN(Slot.HEAD, "\uC655\uAD00", 200, "\uD669\uAE08 \uC655\uAD00", 0.20),
-    BANDANA(Slot.HEAD, "\uB450\uAC74", 70, "\uBA4B\uC9C4 \uB450\uAC74", 0.05),
-    FLOWER(Slot.HEAD, "\uAF43", 30, "\uC608\uC05C \uAF43 \uC7A5\uC2DD", 0.02),
-    STAR_PIN(Slot.HEAD, "\uBCC4 \uD540", 40, "\uBC18\uC9DD\uC774\uB294 \uBCC4 \uD540", 0.03),
+    RED_RIBBON(Slot.HEAD, "\uBE68\uAC04 \uB9AC\uBCF8", 50, "\uADC0\uC5EC\uC6B4 \uBE68\uAC04 \uB9AC\uBCF8", 0.03, "\u2764\uFE0F"),
+    BLUE_RIBBON(Slot.HEAD, "\uD30C\uB780 \uB9AC\uBCF8", 50, "\uC0C1\uCFE8\uD55C \uD30C\uB780 \uB9AC\uBCF8", 0.03, "\uD83D\uDC99"),
+    TOP_HAT(Slot.HEAD, "\uC815\uC7A5 \uBAA8\uC790", 100, "\uACA9\uC2DD \uC788\uB294 \uC815\uC7A5 \uBAA8\uC790", 0.10, "\uD83C\uDFA9"),
+    PARTY_HAT(Slot.HEAD, "\uD30C\uD2F0 \uBAA8\uC790", 80, "\uCD95\uD558 \uD30C\uD2F0 \uBAA8\uC790", 0.05, "\uD83E\uDD73"),
+    CROWN(Slot.HEAD, "\uC655\uAD00", 200, "\uD669\uAE08 \uC655\uAD00", 0.20, "\uD83D\uDC51"),
+    BANDANA(Slot.HEAD, "\uB450\uAC74", 70, "\uBA4B\uC9C4 \uB450\uAC74", 0.05, "\uD83E\uDDE2"),
+    FLOWER(Slot.HEAD, "\uAF43", 30, "\uC608\uC05C \uAF43 \uC7A5\uC2DD", 0.02, "\uD83C\uDF38"),
+    STAR_PIN(Slot.HEAD, "\uBCC4 \uD540", 40, "\uBC18\uC9DD\uC774\uB294 \uBCC4 \uD540", 0.03, "\u2B50"),
 
     // FACE
-    GLASSES(Slot.FACE, "\uC548\uACBD", 60, "\uB181\uAE00 \uC548\uACBD", 0.05),
-    SUNGLASSES(Slot.FACE, "\uC120\uAE00\uB77C\uC2A4", 80, "\uBA4B\uC9C4 \uC120\uAE00\uB77C\uC2A4", 0.08),
-    MONOCLE(Slot.FACE, "\uBAA8\uB178\uD074", 120, "\uACE0\uAE09\uC2A4\uB7EC\uC6B4 \uBAA8\uB178\uD074", 0.12),
+    GLASSES(Slot.FACE, "\uC548\uACBD", 60, "\uB181\uAE00 \uC548\uACBD", 0.05, "\uD83D\uDC53"),
+    SUNGLASSES(Slot.FACE, "\uC120\uAE00\uB77C\uC2A4", 80, "\uBA4B\uC9C4 \uC120\uAE00\uB77C\uC2A4", 0.08, "\uD83D\uDD76\uFE0F"),
+    MONOCLE(Slot.FACE, "\uBAA8\uB178\uD074", 120, "\uACE0\uAE09\uC2A4\uB7EC\uC6B4 \uBAA8\uB178\uD074", 0.12, "\uD83E\uDDD0"),
 
     // NECK
-    SCARF(Slot.NECK, "\uBAA9\uB3C4\uB9AC", 90, "\uB530\uB73B\uD55C \uBAA9\uB3C4\uB9AC", 0.07),
-    BOW_TIE(Slot.NECK, "\uB098\uBE44 \uB125\uD0C0\uC774", 60, "\uC591\uBCF5\uB2EC\uB9B0 \uB098\uBE44 \uB125\uD0C0\uC774", 0.05),
-    BELL(Slot.NECK, "\uBC29\uC6B8", 45, "\uB531\uB7C9\uB531\uB7C9 \uBC29\uC6B8", 0.03),
+    SCARF(Slot.NECK, "\uBAA9\uB3C4\uB9AC", 90, "\uB530\uB73B\uD55C \uBAA9\uB3C4\uB9AC", 0.07, "\uD83E\uDDE3"),
+    BOW_TIE(Slot.NECK, "\uB098\uBE44 \uB125\uD0C0\uC774", 60, "\uC591\uBCF5\uB2EC\uB9B0 \uB098\uBE44 \uB125\uD0C0\uC774", 0.05, "\uD83D\uDC54"),
+    BELL(Slot.NECK, "\uBC29\uC6B8", 45, "\uB531\uB7C9\uB531\uB7C9 \uBC29\uC6B8", 0.03, "\uD83D\uDD14"),
 
     // BODY
-    CAPE(Slot.BODY, "\uB9DD\uD1A0", 150, "\uC601\uC6C5\uC801\uC778 \uB9DD\uD1A0", 0.15);
+    CAPE(Slot.BODY, "\uB9DD\uD1A0", 150, "\uC601\uC6C5\uC801\uC778 \uB9DD\uD1A0", 0.15, "\uD83E\uDDB8");
 
     public enum Slot {
         HEAD, FACE, NECK, BODY
@@ -37,13 +37,15 @@ public enum Accessory {
     private final int cost;
     private final String description;
     private final double coinBonus;
+    private final String emoji;
 
-    Accessory(Slot slot, String displayName, int cost, String description, double coinBonus) {
+    Accessory(Slot slot, String displayName, int cost, String description, double coinBonus, String emoji) {
         this.slot = slot;
         this.displayName = displayName;
         this.cost = cost;
         this.description = description;
         this.coinBonus = coinBonus;
+        this.emoji = emoji;
     }
 
     public Slot getSlot() { return slot; }
@@ -51,6 +53,7 @@ public enum Accessory {
     public int getCost() { return cost; }
     public String getDescription() { return description; }
     public double getCoinBonus() { return coinBonus; }
+    public String getEmoji() { return emoji; }
 
     public void draw(Graphics2D g2, int direction, int baseY) {
         AffineTransform saved = g2.getTransform();

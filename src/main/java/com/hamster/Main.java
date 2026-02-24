@@ -332,6 +332,11 @@ public class Main {
             public void onShowStatistics() {
                 onShowStatistics_();
             }
+
+            @Override
+            public void onEquipAccessory(Hamster h) {
+                onEquipAccessory_(h);
+            }
         }, settings.opacity);
 
         hotkeyManager.setCallback(this::toggleAllWindows);
@@ -348,21 +353,28 @@ public class Main {
     }
 
     private void gameLoop() {
-        totalFrames++;
-        statistics.totalPlayTimeFrames++;
-
-        // Tick all windows
+        // Tick all windows (animation continues even when paused)
         for (HamsterWindow w : hamsterWindows) {
             w.tick();
         }
 
-        // Check poop for each hamster
+        // Check poop for each hamster (even when paused)
         for (int i = 0; i < hamsters.size(); i++) {
             Hamster h = hamsters.get(i);
             if (!h.isDead() && h.shouldPoop()) {
                 spawnPoop(hamsterWindows.get(i));
             }
         }
+
+        // Refresh control panel (always update UI)
+        int poopCount = poopWindows.size();
+        controlPanel.refresh(poopCount, money, metaProgress.sunflowerSeeds);
+
+        // Skip all game logic when paused
+        if (allFrozen) return;
+
+        totalFrames++;
+        statistics.totalPlayTimeFrames++;
 
         // Collect pending coins from ongoing actions
         for (Hamster h : hamsters) {
@@ -373,7 +385,6 @@ public class Main {
         }
 
         // Apply poop penalty
-        int poopCount = poopWindows.size();
         for (Hamster h : hamsters) {
             h.applyPoopPenalty(poopCount);
         }
@@ -442,9 +453,6 @@ public class Main {
         if (totalFrames % 1800 == 0) {
             autoSave();
         }
-
-        // Refresh control panel
-        controlPanel.refresh(poopCount, money);
     }
 
     private void spawnPoop(HamsterWindow window) {
@@ -1083,6 +1091,10 @@ public class Main {
                 hamsters
         );
 
+        if (!newAchievements.isEmpty()) {
+            achievementManager.save();
+        }
+
         for (Achievement ach : newAchievements) {
             String reward;
             if (ach.getRewardType() == Achievement.RewardType.COINS) {
@@ -1102,12 +1114,10 @@ public class Main {
     // 2.0 callback methods for ControlPanel
     private void onFeedWithFood(Hamster h) {
         if (foodInventory == null || foodInventory.isEmpty()) {
-            // Fall back to default feed
             h.feed();
             statistics.totalFeedActions++;
             return;
         }
-        // Show food selection popup
         java.util.Map<FoodItem, Integer> items = foodInventory.getAllItems();
         if (items.isEmpty()) {
             h.feed();
@@ -1115,39 +1125,136 @@ public class Main {
             return;
         }
 
-        java.util.List<FoodItem> available = new java.util.ArrayList<>();
-        java.util.List<String> names = new java.util.ArrayList<>();
+        // Build available food list
+        final java.util.List<FoodItem> available = new java.util.ArrayList<>();
         for (java.util.Map.Entry<FoodItem, Integer> entry : items.entrySet()) {
-            if (entry.getValue() > 0) {
-                available.add(entry.getKey());
-                names.add(entry.getKey().getDisplayName() + " x" + entry.getValue()
-                        + " (" + entry.getKey().getEffectText() + ")");
-            }
+            if (entry.getValue() > 0) available.add(entry.getKey());
         }
-
         if (available.isEmpty()) {
             h.feed();
             statistics.totalFeedActions++;
             return;
         }
 
-        String[] nameArray = names.toArray(new String[0]);
-        String sel = (String) JOptionPane.showInputDialog(controlPanel,
-                h.getName() + "\uC5D0\uAC8C \uBB34\uC5C7\uC744 \uBA39\uC77C\uAE4C\uC694?",
-                "\uBC25\uC8FC\uAE30", JOptionPane.PLAIN_MESSAGE, null, nameArray, nameArray[0]);
-        if (sel == null) return;
+        // Configure tooltips for long display
+        ToolTipManager ttm = ToolTipManager.sharedInstance();
+        int origInitial = ttm.getInitialDelay();
+        int origDismiss = ttm.getDismissDelay();
+        ttm.setInitialDelay(200);
+        ttm.setDismissDelay(30000);
 
-        int idx = -1;
-        for (int i = 0; i < nameArray.length; i++) {
-            if (sel.equals(nameArray[i])) { idx = i; break; }
+        // Create inventory-style popup dialog
+        final JDialog popup = new JDialog(controlPanel, h.getName() + " \uBC25\uC8FC\uAE30", true);
+        popup.setUndecorated(true);
+        popup.setAlwaysOnTop(true);
+
+        JPanel outer = new JPanel(new BorderLayout());
+        outer.setBackground(new Color(255, 248, 235));
+        outer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(180, 150, 100), 2),
+                BorderFactory.createEmptyBorder(6, 6, 6, 6)
+        ));
+
+        // Title bar
+        JLabel title = new JLabel(ControlPanel.wrapEmoji("\uD83C\uDF7D\uFE0F " + h.getName() + "\uC758 \uBA39\uC774"));
+        title.setFont(new Font("Noto Sans KR", Font.BOLD, 12));
+        title.setForeground(new Color(80, 50, 20));
+        title.setBorder(BorderFactory.createEmptyBorder(0, 4, 6, 0));
+        outer.add(title, BorderLayout.NORTH);
+
+        // Grid of food slots
+        int cols = 5;
+        int rows = (FoodItem.values().length + cols - 1) / cols;
+        JPanel grid = new JPanel(new GridLayout(rows, cols, 3, 3));
+        grid.setOpaque(false);
+
+        final int SLOT_SIZE = 52;
+        final Color slotActive = new Color(255, 250, 230);
+        final Color slotEmpty = new Color(220, 215, 200);
+        final Color borderActive = new Color(200, 170, 100);
+        final Color borderEmpty = new Color(180, 175, 165);
+        for (final FoodItem food : FoodItem.values()) {
+            final int count = foodInventory.getCount(food);
+            JPanel slot = new JPanel(new BorderLayout());
+            slot.setPreferredSize(new Dimension(SLOT_SIZE, SLOT_SIZE));
+            slot.setBackground(count > 0 ? slotActive : slotEmpty);
+            slot.setBorder(BorderFactory.createLineBorder(
+                    count > 0 ? borderActive : borderEmpty, 1));
+
+            // Emoji icon centered
+            JLabel emojiLabel = new JLabel(ControlPanel.wrapEmoji(food.getEmoji()), SwingConstants.CENTER);
+            emojiLabel.setFont(new Font("Segoe UI Emoji", Font.PLAIN, 22));
+            if (count <= 0) emojiLabel.setEnabled(false);
+            slot.add(emojiLabel, BorderLayout.CENTER);
+
+            // Count label at bottom-right
+            if (count > 0) {
+                JLabel countLabel = new JLabel(String.valueOf(count));
+                countLabel.setFont(new Font("Noto Sans KR", Font.BOLD, 10));
+                countLabel.setForeground(new Color(100, 70, 30));
+                countLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+                countLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 1, 3));
+                slot.add(countLabel, BorderLayout.SOUTH);
+            }
+
+            // Tooltip with description
+            String tip = "<html><b>" + food.getDisplayName() + "</b><br>"
+                    + food.getDescription() + "<br>"
+                    + "<font color='#448844'>" + food.getEffectText() + "</font>";
+            if (count > 0) tip += "<br>\uBCF4\uC720: " + count + "\uAC1C";
+            else tip += "<br><font color='#CC4444'>\uC5C6\uC74C</font>";
+            tip += "</html>";
+            slot.setToolTipText(tip);
+
+            // Click to feed
+            if (count > 0) {
+                slot.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+                slot.addMouseListener(new java.awt.event.MouseAdapter() {
+                    @Override
+                    public void mouseClicked(java.awt.event.MouseEvent e) {
+                        foodInventory.remove(food);
+                        h.feed(food);
+                        statistics.totalFeedActions++;
+                        achievementManager.foodsTried.add(food.name());
+                        popup.dispose();
+                    }
+                    @Override
+                    public void mouseEntered(java.awt.event.MouseEvent e) {
+                        slot.setBackground(new Color(255, 240, 190));
+                        slot.setBorder(BorderFactory.createLineBorder(new Color(230, 180, 60), 2));
+                    }
+                    @Override
+                    public void mouseExited(java.awt.event.MouseEvent e) {
+                        slot.setBackground(slotActive);
+                        slot.setBorder(BorderFactory.createLineBorder(borderActive, 1));
+                    }
+                });
+            }
+
+            grid.add(slot);
         }
-        if (idx < 0) return;
 
-        FoodItem food = available.get(idx);
-        foodInventory.remove(food);
-        h.feed(food);
-        statistics.totalFeedActions++;
-        achievementManager.foodsTried.add(food.name());
+        outer.add(grid, BorderLayout.CENTER);
+
+        // Close hint
+        JLabel hint = new JLabel("ESC: \uB2EB\uAE30", SwingConstants.CENTER);
+        hint.setFont(new Font("Noto Sans KR", Font.PLAIN, 10));
+        hint.setForeground(new Color(150, 130, 100));
+        hint.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
+        outer.add(hint, BorderLayout.SOUTH);
+
+        popup.setContentPane(outer);
+        popup.getRootPane().registerKeyboardAction(
+                e -> popup.dispose(),
+                KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+        popup.pack();
+        popup.setLocationRelativeTo(controlPanel);
+        popup.setVisible(true);
+
+        // Restore tooltip settings
+        ttm.setInitialDelay(origInitial);
+        ttm.setDismissDelay(origDismiss);
     }
 
     private void onShowAchievements_() {
@@ -1160,6 +1267,188 @@ public class Main {
 
     private void onShowStatistics_() {
         StatisticsDialog.show(controlPanel, statistics);
+    }
+
+    private void onEquipAccessory_(Hamster h) {
+        java.util.Set<String> owned = h.getOwnedAccessories();
+        if (owned.isEmpty()) {
+            JOptionPane.showMessageDialog(controlPanel,
+                    "\uBCF4\uC720 \uC911\uC778 \uC545\uC138\uC11C\uB9AC\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.\n\uC0C1\uC810\uC5D0\uC11C \uAD6C\uB9E4\uD574\uC8FC\uC138\uC694!",
+                    "\uCE58\uC7A5", JOptionPane.INFORMATION_MESSAGE);
+            return;
+        }
+
+        // Configure tooltips
+        ToolTipManager ttm = ToolTipManager.sharedInstance();
+        int origInitial = ttm.getInitialDelay();
+        int origDismiss = ttm.getDismissDelay();
+        ttm.setInitialDelay(200);
+        ttm.setDismissDelay(30000);
+
+        final JDialog popup = new JDialog(controlPanel, h.getName() + " \uCE58\uC7A5", true);
+        popup.setUndecorated(true);
+        popup.setAlwaysOnTop(true);
+
+        JPanel outer = new JPanel(new BorderLayout());
+        outer.setBackground(new Color(255, 248, 235));
+        outer.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(180, 150, 100), 2),
+                BorderFactory.createEmptyBorder(6, 6, 6, 6)
+        ));
+
+        JLabel title = new JLabel(ControlPanel.wrapEmoji("\uD83C\uDFA8 " + h.getName() + "\uC758 \uCE58\uC7A5"));
+        title.setFont(new Font("Noto Sans KR", Font.BOLD, 12));
+        title.setForeground(new Color(80, 50, 20));
+        title.setBorder(BorderFactory.createEmptyBorder(0, 4, 6, 0));
+        outer.add(title, BorderLayout.NORTH);
+
+        // Build grid of owned accessories
+        java.util.List<Accessory> ownedList = new java.util.ArrayList<>();
+        for (Accessory acc : Accessory.values()) {
+            if (owned.contains(acc.name())) {
+                ownedList.add(acc);
+            }
+        }
+
+        int cols = 5;
+        int rows = (ownedList.size() + cols - 1) / cols;
+        JPanel grid = new JPanel(new GridLayout(Math.max(1, rows), cols, 4, 4));
+        grid.setOpaque(false);
+
+        final int SLOT_SIZE = 56;
+        final Color slotNormal = new Color(255, 250, 230);
+        final Color borderNormal = new Color(200, 170, 100);
+        final Color slotEquipped = new Color(255, 245, 200);
+        final Color borderEquipped = new Color(218, 165, 32);
+
+        for (final Accessory acc : ownedList) {
+            final boolean equipped = h.getEquippedAccessories().contains(acc);
+
+            final JPanel slot = new JPanel(new BorderLayout()) {
+                @Override
+                protected void paintComponent(Graphics g) {
+                    super.paintComponent(g);
+                    Graphics2D g2 = (Graphics2D) g;
+                    g2.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
+                    java.awt.image.BufferedImage icon = ItemIcon.getAccessoryIcon(acc);
+                    int x = (getWidth() - icon.getWidth()) / 2;
+                    int y = 2;
+                    g2.drawImage(icon, x, y, null);
+                }
+            };
+            slot.setPreferredSize(new Dimension(SLOT_SIZE, SLOT_SIZE));
+
+            if (equipped) {
+                slot.setBackground(slotEquipped);
+                slot.setBorder(BorderFactory.createLineBorder(borderEquipped, 2));
+            } else {
+                slot.setBackground(slotNormal);
+                slot.setBorder(BorderFactory.createLineBorder(borderNormal, 1));
+            }
+
+            // Bottom label
+            JPanel bottomPanel = new JPanel(new BorderLayout());
+            bottomPanel.setOpaque(false);
+            if (equipped) {
+                JLabel eqLabel = new JLabel("\uC7A5\uCC29", SwingConstants.CENTER);
+                eqLabel.setFont(new Font("Noto Sans KR", Font.BOLD, 9));
+                eqLabel.setForeground(borderEquipped);
+                eqLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 1, 0));
+                bottomPanel.add(eqLabel, BorderLayout.CENTER);
+            } else {
+                String slotName;
+                switch (acc.getSlot()) {
+                    case HEAD: slotName = "\uBA38\uB9AC"; break;
+                    case FACE: slotName = "\uC5BC\uAD74"; break;
+                    case NECK: slotName = "\uBAA9"; break;
+                    case BODY: slotName = "\uBAB8"; break;
+                    default: slotName = "";
+                }
+                JLabel nameLabel = new JLabel(slotName, SwingConstants.CENTER);
+                nameLabel.setFont(new Font("Noto Sans KR", Font.PLAIN, 8));
+                nameLabel.setForeground(new Color(120, 100, 60));
+                nameLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 1, 0));
+                bottomPanel.add(nameLabel, BorderLayout.CENTER);
+            }
+            slot.add(bottomPanel, BorderLayout.SOUTH);
+
+            // Tooltip
+            String coinText = String.format("\uCF54\uC778+%d%%", (int)(acc.getCoinBonus() * 100));
+            String tip = "<html><b>" + acc.getDisplayName() + "</b><br>"
+                    + acc.getDescription() + "<br>"
+                    + "<font color='#448844'>" + coinText + "</font>";
+            if (equipped) tip += "<br><b><font color='#B8860B'>\uC7A5\uCC29\uC911</font></b>";
+            tip += "<br>\uD074\uB9AD: " + (equipped ? "\uD574\uC81C" : "\uC7A5\uCC29");
+            tip += "</html>";
+            slot.setToolTipText(tip);
+
+            // Click to toggle equip
+            slot.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+            slot.addMouseListener(new java.awt.event.MouseAdapter() {
+                @Override
+                public void mouseClicked(java.awt.event.MouseEvent e) {
+                    if (h.getEquippedAccessories().contains(acc)) {
+                        h.unequipAccessory(acc);
+                    } else {
+                        h.equipAccessory(acc);
+                    }
+                    popup.dispose();
+                    // Re-open to refresh state
+                    onEquipAccessory_(h);
+                }
+                @Override
+                public void mouseEntered(java.awt.event.MouseEvent e) {
+                    slot.setBackground(new Color(255, 240, 190));
+                    slot.setBorder(BorderFactory.createLineBorder(new Color(230, 180, 60), 2));
+                }
+                @Override
+                public void mouseExited(java.awt.event.MouseEvent e) {
+                    if (h.getEquippedAccessories().contains(acc)) {
+                        slot.setBackground(slotEquipped);
+                        slot.setBorder(BorderFactory.createLineBorder(borderEquipped, 2));
+                    } else {
+                        slot.setBackground(slotNormal);
+                        slot.setBorder(BorderFactory.createLineBorder(borderNormal, 1));
+                    }
+                }
+            });
+
+            grid.add(slot);
+        }
+
+        // Fill empty slots
+        int remainder = (cols - (ownedList.size() % cols)) % cols;
+        for (int i = 0; i < remainder; i++) {
+            JPanel empty = new JPanel();
+            empty.setPreferredSize(new Dimension(SLOT_SIZE, SLOT_SIZE));
+            empty.setBackground(new Color(235, 230, 220));
+            empty.setBorder(BorderFactory.createLineBorder(new Color(190, 185, 175), 1));
+            grid.add(empty);
+        }
+
+        outer.add(grid, BorderLayout.CENTER);
+
+        // Close hint
+        JLabel hint = new JLabel("ESC: \uB2EB\uAE30", SwingConstants.CENTER);
+        hint.setFont(new Font("Noto Sans KR", Font.PLAIN, 10));
+        hint.setForeground(new Color(150, 130, 100));
+        hint.setBorder(BorderFactory.createEmptyBorder(4, 0, 0, 0));
+        outer.add(hint, BorderLayout.SOUTH);
+
+        popup.setContentPane(outer);
+        popup.getRootPane().registerKeyboardAction(
+                e -> popup.dispose(),
+                KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW);
+        popup.pack();
+        popup.setLocationRelativeTo(controlPanel);
+        popup.setVisible(true);
+
+        // Restore tooltip settings
+        ttm.setInitialDelay(origInitial);
+        ttm.setDismissDelay(origDismiss);
+
+        autoSave();
     }
 
     // Accessor for food inventory (used by shop)
