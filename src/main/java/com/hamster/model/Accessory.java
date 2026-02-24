@@ -26,11 +26,24 @@ public enum Accessory {
     BELL(Slot.NECK, "\uBC29\uC6B8", 45, "\uB531\uB7C9\uB531\uB7C9 \uBC29\uC6B8", 0.03, "\uD83D\uDD14"),
 
     // BODY
-    CAPE(Slot.BODY, "\uB9DD\uD1A0", 150, "\uC601\uC6C5\uC801\uC778 \uB9DD\uD1A0", 0.15, "\uD83E\uDDB8");
+    CAPE(Slot.BODY, "\uB9DD\uD1A0", 150, "\uC601\uC6C5\uC801\uC778 \uB9DD\uD1A0", 0.15, "\uD83E\uDDB8"),
+
+    // SHOES
+    RUNNING_SHOES(Slot.SHOES, "\uC6B4\uB3D9\uD654", 70, "\uBE60\uB978 \uC6B4\uB3D9\uD654", 0.05, "\uD83D\uDC5F"),
+    WARM_SOCKS(Slot.SHOES, "\uB530\uB73B\uD55C \uC591\uB9D0", 40, "\uD3EC\uADFC\uD558\uACE0 \uB530\uB73B\uD55C \uC591\uB9D0", 0.03, "\uD83E\uDDE6"),
+    SLIPPERS(Slot.SHOES, "\uC2AC\uB9AC\uD37C", 55, "\uD3B8\uC548\uD55C \uC2AC\uB9AC\uD37C", 0.04, "\uD83E\uDE74"),
+
+    // HANDS
+    TINY_GLOVES(Slot.HANDS, "\uC791\uC740 \uC7A5\uAC11", 60, "\uADC0\uC5EC\uC6B4 \uC791\uC740 \uC7A5\uAC11", 0.05, "\uD83E\uDDE4"),
+    WRISTBAND(Slot.HANDS, "\uC190\uBAA9\uBC34\uB4DC", 45, "\uC2A4\uD3EC\uD2F0 \uC190\uBAA9\uBC34\uB4DC", 0.03, "\uD83D\uDCAA"),
+    RING(Slot.HANDS, "\uBC18\uC9C0", 120, "\uBC18\uC9DD\uC774\uB294 \uBC18\uC9C0", 0.10, "\uD83D\uDC8D");
 
     public enum Slot {
-        HEAD, FACE, NECK, BODY
+        HEAD, FACE, NECK, BODY, SHOES, HANDS
     }
+
+    /** Number of distinct slot types */
+    public static final int SLOT_COUNT = Slot.values().length;
 
     private final Slot slot;
     private final String displayName;
@@ -180,6 +193,52 @@ public enum Accessory {
                 g2.drawOval(26, 36 + baseY, 8, 8);
                 g2.setColor(new Color(80, 80, 80));
                 g2.fillOval(29, 40 + baseY, 3, 3);
+                break;
+
+            // SHOES accessories
+            case RUNNING_SHOES:
+                g2.setColor(new Color(60, 60, 200));
+                g2.fillRoundRect(14, 52 + baseY, 12, 8, 3, 3);
+                g2.fillRoundRect(34, 52 + baseY, 12, 8, 3, 3);
+                g2.setColor(Color.WHITE);
+                g2.drawLine(16, 55 + baseY, 24, 55 + baseY);
+                g2.drawLine(36, 55 + baseY, 44, 55 + baseY);
+                break;
+            case WARM_SOCKS:
+                g2.setColor(new Color(255, 200, 200));
+                g2.fillRoundRect(14, 48 + baseY, 12, 12, 4, 4);
+                g2.fillRoundRect(34, 48 + baseY, 12, 12, 4, 4);
+                g2.setColor(new Color(255, 150, 150));
+                g2.drawLine(14, 52 + baseY, 26, 52 + baseY);
+                g2.drawLine(34, 52 + baseY, 46, 52 + baseY);
+                break;
+            case SLIPPERS:
+                g2.setColor(new Color(200, 160, 220));
+                g2.fillRoundRect(12, 54 + baseY, 14, 7, 4, 4);
+                g2.fillRoundRect(32, 54 + baseY, 14, 7, 4, 4);
+                g2.setColor(new Color(255, 200, 220));
+                g2.fillOval(14, 53 + baseY, 6, 6);
+                g2.fillOval(34, 53 + baseY, 6, 6);
+                break;
+
+            // HANDS accessories
+            case TINY_GLOVES:
+                g2.setColor(new Color(180, 100, 60));
+                g2.fillRoundRect(6, 36 + baseY, 8, 10, 3, 3);
+                g2.fillRoundRect(46, 36 + baseY, 8, 10, 3, 3);
+                break;
+            case WRISTBAND:
+                g2.setColor(new Color(255, 80, 80));
+                g2.fillRoundRect(6, 38 + baseY, 8, 5, 2, 2);
+                g2.fillRoundRect(46, 38 + baseY, 8, 5, 2, 2);
+                break;
+            case RING:
+                g2.setColor(new Color(255, 215, 0));
+                g2.setStroke(new BasicStroke(2));
+                g2.drawOval(46, 38 + baseY, 7, 7);
+                g2.setColor(new Color(100, 200, 255));
+                g2.fillOval(48, 36 + baseY, 4, 4);
+                g2.setStroke(new BasicStroke(1));
                 break;
 
             // BODY accessories

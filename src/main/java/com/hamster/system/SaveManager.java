@@ -1,6 +1,7 @@
 package com.hamster.system;
 import com.hamster.model.Buff;
 import com.hamster.model.FoodInventory;
+import com.hamster.model.GameConstants;
 import com.hamster.model.GameState;
 import com.hamster.model.HamsterColor;
 
@@ -10,7 +11,7 @@ import java.util.Properties;
 
 public class SaveManager {
 
-    private static final String SAVE_DIR = System.getProperty("user.home") + "/.desktophamster/";
+    private static final String SAVE_DIR = GameConstants.SAVE_DIR;
     private static final String AUTOSAVE_FILE = SAVE_DIR + "save_autosave.properties";
 
     public static void saveAuto(GameState state) {
@@ -36,7 +37,19 @@ public class SaveManager {
             dir.mkdirs();
         }
 
+        // Create backup of existing save
+        File targetFile = new File(path);
+        File backupFile = new File(path + ".bak");
+        if (targetFile.exists()) {
+            try {
+                copyFile(targetFile, backupFile);
+            } catch (IOException e) {
+                GameLogger.warn("Failed to create backup: " + e.getMessage());
+            }
+        }
+
         Properties props = new Properties();
+        props.setProperty("saveVersion", String.valueOf(GameConstants.SAVE_VERSION));
         props.setProperty("money", String.valueOf(state.money));
         props.setProperty("totalFrames", String.valueOf(state.totalFrames));
         props.setProperty("hamstersRaised", String.valueOf(state.hamstersRaised));
@@ -96,18 +109,45 @@ public class SaveManager {
         }
 
         File tempFile = new File(path + ".tmp");
-        File targetFile = new File(path);
         try (FileOutputStream fos = new FileOutputStream(tempFile)) {
             props.store(fos, "DesktopHamster Save - " + label);
         } catch (IOException e) {
-            e.printStackTrace();
+            GameLogger.error("Failed to save game: " + label, e);
             return;
         }
 
         if (targetFile.exists()) {
             targetFile.delete();
         }
-        tempFile.renameTo(targetFile);
+        if (!tempFile.renameTo(targetFile)) {
+            GameLogger.error("Failed to rename temp save file to: " + path);
+            // Try to restore from backup
+            if (backupFile.exists()) {
+                try {
+                    copyFile(backupFile, targetFile);
+                    GameLogger.info("Restored save from backup");
+                } catch (IOException e) {
+                    GameLogger.error("Failed to restore backup", e);
+                }
+            }
+        }
+    }
+
+    private static void copyFile(File src, File dst) throws IOException {
+        FileInputStream fis = null;
+        FileOutputStream fos = null;
+        try {
+            fis = new FileInputStream(src);
+            fos = new FileOutputStream(dst);
+            byte[] buf = new byte[4096];
+            int len;
+            while ((len = fis.read(buf)) > 0) {
+                fos.write(buf, 0, len);
+            }
+        } finally {
+            if (fis != null) try { fis.close(); } catch (IOException ignored) {}
+            if (fos != null) try { fos.close(); } catch (IOException ignored) {}
+        }
     }
 
     /** Returns a brief summary of the auto-save for display in the start dialog, or null if none. */
@@ -129,7 +169,7 @@ public class SaveManager {
             String name = props.getProperty(prefix + "name", "\uD584\uC2A4\uD130");
             int gen = Integer.parseInt(props.getProperty(prefix + "generation", "1"));
             long ageFrames = Long.parseLong(props.getProperty(prefix + "ageFrames", "0"));
-            int ageDays = (int)(ageFrames / 9000);
+            int ageDays = (int)(ageFrames / GameConstants.FRAMES_PER_DAY);
             if (i > 0) sb.append(", ");
             sb.append(name).append("(").append(ageDays).append("\uC77C");
             if (gen > 1) sb.append(", ").append(gen).append("\uC138\uB300");
@@ -161,15 +201,39 @@ public class SaveManager {
 
     private static GameState loadFromFile(String path) {
         File file = new File(path);
-        if (!file.exists()) return null;
+        if (!file.exists()) {
+            // Try backup
+            File backup = new File(path + ".bak");
+            if (backup.exists()) {
+                GameLogger.warn("Main save missing, trying backup: " + path);
+                file = backup;
+            } else {
+                return null;
+            }
+        }
 
         Properties props = new Properties();
         try (FileInputStream fis = new FileInputStream(file)) {
             props.load(fis);
         } catch (IOException e) {
-            e.printStackTrace();
-            return null;
+            GameLogger.error("Failed to load save: " + path, e);
+            // Try backup
+            File backup = new File(path + ".bak");
+            if (backup.exists() && !file.equals(backup)) {
+                GameLogger.info("Trying backup file");
+                try (FileInputStream bfis = new FileInputStream(backup)) {
+                    props.load(bfis);
+                } catch (IOException e2) {
+                    GameLogger.error("Failed to load backup", e2);
+                    return null;
+                }
+            } else {
+                return null;
+            }
         }
+
+        int saveVersion = Integer.parseInt(props.getProperty("saveVersion", "1"));
+        GameLogger.debug("Loading save version " + saveVersion);
 
         GameState state = new GameState();
         state.money = Integer.parseInt(props.getProperty("money", "0"));

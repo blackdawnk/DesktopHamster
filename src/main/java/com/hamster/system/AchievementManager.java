@@ -10,7 +10,7 @@ import java.util.*;
 
 public class AchievementManager {
 
-    private static final String SAVE_DIR = System.getProperty("user.home") + "/.desktophamster/";
+    private static final String SAVE_DIR = com.hamster.model.GameConstants.SAVE_DIR;
     private static final String ACH_FILE = SAVE_DIR + "achievements.properties";
 
     private final Set<String> unlocked = new HashSet<>();
@@ -108,7 +108,7 @@ public class AchievementManager {
         try (FileOutputStream fos = new FileOutputStream(ACH_FILE)) {
             props.store(fos, "DesktopHamster Achievements");
         } catch (IOException e) {
-            e.printStackTrace();
+            GameLogger.error("Failed to save achievements", e);
         }
     }
 

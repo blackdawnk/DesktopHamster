@@ -3,6 +3,7 @@ import com.hamster.model.Accessory;
 import com.hamster.model.Buff;
 import com.hamster.model.FoodInventory;
 import com.hamster.model.FoodItem;
+import com.hamster.model.GameConstants;
 import com.hamster.model.GameState;
 import com.hamster.model.GameStatistics;
 import com.hamster.model.Hamster;
@@ -14,9 +15,11 @@ import com.hamster.render.HamsterIcon;
 import com.hamster.render.ItemIcon;
 import com.hamster.system.Achievement;
 import com.hamster.system.AchievementManager;
+import com.hamster.system.GameLogger;
 import com.hamster.system.GlobalHotkeyManager;
 import com.hamster.system.HamsterInteraction;
 import com.hamster.system.HamsterJournal;
+import com.hamster.system.HamsterManager;
 import com.hamster.system.MetaProgress;
 import com.hamster.system.RandomEvent;
 import com.hamster.system.SaveManager;
@@ -72,21 +75,34 @@ public class Main {
     private int interactionTimer = 0;
     private int achievementCheckTimer = 0;
     private int hamsterPurchaseCount = 0;
+    private HamsterManager hamsterManager;
 
-    private static final String SAVE_DIR = System.getProperty("user.home") + "/.desktophamster/";
+    private final HamsterWindow.ContextMenuCallback contextMenuCallback = new HamsterWindow.ContextMenuCallback() {
+        @Override public void onFeed(Hamster h) { onFeedWithFood(h); }
+        @Override public void onPlay(Hamster h) { h.play(); statistics.totalPlayActions++; achievementManager.totalPlays++; }
+        @Override public void onRunWheel(Hamster h) { h.runWheel(); statistics.totalWheelActions++; }
+        @Override public void onSleep(Hamster h) { h.sleep(); statistics.totalSleepActions++; }
+        @Override public void onEquipAccessory(Hamster h) { onEquipAccessory_(h); }
+        @Override public void onKill(Hamster h) { killSingleHamster(h); }
+    };
+
+    private static final String SAVE_DIR = GameConstants.SAVE_DIR;
     private static final String LEGACY_FILE = SAVE_DIR + "pending_legacy.properties";
 
     public static void main(String[] args) {
-        // Global exception handler for debugging
+        GameLogger.init();
+
+        // Global exception handler
         Thread.setDefaultUncaughtExceptionHandler((t, e) -> {
-            System.err.println("[ERROR] Uncaught exception in thread: " + t.getName());
-            e.printStackTrace();
+            GameLogger.error("Uncaught exception in thread: " + t.getName(), e);
         });
 
         SwingUtilities.invokeLater(() -> {
             try {
                 UIManager.setLookAndFeel(UIManager.getSystemLookAndFeelClassName());
-            } catch (Exception ignored) {}
+            } catch (Exception e) {
+                GameLogger.warn("Failed to set system look and feel: " + e.getMessage());
+            }
 
             new Main().start();
         });
@@ -98,6 +114,7 @@ public class Main {
         statistics = GameStatistics.load();
         achievementManager = AchievementManager.load();
         journal = HamsterJournal.load();
+        hamsterManager = new HamsterManager(metaProgress, random);
         loadPendingLegacy();
 
         if (!systemSetupDone) {
@@ -133,35 +150,21 @@ public class Main {
 
     private void startNewGame() {
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(
-                GraphicsEnvironment.getLocalGraphicsEnvironment()
-                        .getDefaultScreenDevice().getDefaultConfiguration());
-        int groundY = screenSize.height - insets.bottom - 100;
+        int groundY = hamsterManager.getGroundY(screenSize);
 
-        int minDays = metaProgress.getMinLifespanDays();
-        int maxDays = metaProgress.getMaxLifespanDays();
-        int lifespanFrames = (minDays + random.nextInt(maxDays - minDays + 1)) * Hamster.FRAMES_PER_DAY;
-
-        Hamster h = new Hamster(screenSize.width, 10, HamsterColor.WHITE, lifespanFrames);
-        h.setName("\uB0B4 \uD584\uC2A4\uD130");
-        applyMetaValues(h);
-        applyStartingStats(h);
+        Hamster h = hamsterManager.createHamster(screenSize.width, HamsterColor.WHITE, "\uB0B4 \uD584\uC2A4\uD130");
 
         if (pendingLegacy != null) {
-            h.setGeneration(pendingLegacy[0]);
-            h.setLegacyHungerBonus(pendingLegacy[1]);
-            h.setLegacyHappinessBonus(pendingLegacy[2]);
-            h.setLegacyEnergyBonus(pendingLegacy[3]);
-            h.setLegacyLifespanBonus(pendingLegacy[4]);
-            h.setLegacyMaxStatBonus(pendingLegacy[5]);
-            h.applyLegacyBonuses();
+            hamsterManager.applyPendingLegacy(h, pendingLegacy);
             pendingLegacy = null;
-            savePendingLegacy(); // delete the file
+            savePendingLegacy();
         }
 
+        hamsterManager.registerWithAchievements(h, achievementManager);
         hamsters.add(h);
 
         HamsterWindow w = new HamsterWindow(h);
+        w.setContextMenuCallback(contextMenuCallback);
         w.setLocation(screenSize.width / 2 - 40, groundY);
         hamsterWindows.add(w);
         applySentBackState(w);
@@ -173,14 +176,6 @@ public class Main {
         foodInventory = new FoodInventory();
         statistics.totalGamesPlayed++;
         statistics.totalHamstersRaised++;
-        achievementManager.colorsSeen.add(h.getColor().name());
-        if (h.getPersonality() != null) {
-            achievementManager.personalitiesSeen.add(h.getPersonality().name());
-        }
-        // Copy global accessories to new hamster
-        for (String accName : achievementManager.accessoriesBought) {
-            h.getOwnedAccessories().add(accName);
-        }
 
         startGameLoop();
     }
@@ -216,7 +211,7 @@ public class Main {
             h.setMaxEnergy(hd.maxEnergy);
             h.setBreedCooldownFrames(hd.breedCooldownFrames);
             // Apply meta values
-            applyMetaValues(h);
+            hamsterManager.applyMetaValues(h);
             for (GameState.BuffData bd : hd.buffs) {
                 h.addBuff(new Buff(bd.type, bd.multiplier, bd.remainingFrames, bd.description));
             }
@@ -238,6 +233,7 @@ public class Main {
             hamsters.add(h);
 
             HamsterWindow w = new HamsterWindow(h);
+            w.setContextMenuCallback(contextMenuCallback);
             w.setLocation(hd.windowX, hd.windowY);
             hamsterWindows.add(w);
             applySentBackState(w);
@@ -255,7 +251,7 @@ public class Main {
             final PoopWindow[] holder = new PoopWindow[1];
             holder[0] = new PoopWindow(poop, () -> {
                 poopWindows.remove(holder[0]);
-                addMoney(5, null);
+                addMoney(GameConstants.POOP_CLICK_REWARD, null);
             });
             poopWindows.add(holder[0]);
             applySentBackState(holder[0]);
@@ -272,7 +268,7 @@ public class Main {
                 for (PoopWindow pw : new ArrayList<>(poopWindows)) {
                     pw.dispose();
                 }
-                addMoney(3 * count, null);
+                addMoney(GameConstants.POOP_CLEAN_ALL_REWARD * count, null);
                 poopWindows.clear();
                 statistics.totalPoopsCleaned += count;
                 achievementManager.totalPoopsCleaned += count;
@@ -379,7 +375,7 @@ public class Main {
             setAllWindowsOpacity(settings.opacity / 100f);
         }
 
-        gameTimer = new Timer(33, e -> gameLoop());
+        gameTimer = new Timer(GameConstants.GAME_TICK_MS, e -> gameLoop());
         gameTimer.start();
     }
 
@@ -446,23 +442,23 @@ public class Main {
 
         // Hamster interactions
         interactionTimer++;
-        if (interactionTimer >= 2700 && hamsterWindows.size() >= 2) {
+        if (interactionTimer >= GameConstants.INTERACTION_CHECK_INTERVAL && hamsterWindows.size() >= 2) {
             interactionTimer = 0;
             tryInteraction();
         }
 
-        // Passive income: every 900 frames (~30 seconds), +1 coin per living hamster
-        if (totalFrames % 900 == 0) {
+        // Passive income
+        if (totalFrames % GameConstants.PASSIVE_INCOME_INTERVAL == 0) {
             for (Hamster h : hamsters) {
                 if (!h.isDead()) {
-                    addMoney(1, h);
+                    addMoney(GameConstants.PASSIVE_INCOME_AMOUNT, h);
                 }
             }
         }
 
-        // Achievement check: every 900 frames (~30 seconds)
+        // Achievement check
         achievementCheckTimer++;
-        if (achievementCheckTimer >= 900) {
+        if (achievementCheckTimer >= GameConstants.ACHIEVEMENT_CHECK_INTERVAL) {
             achievementCheckTimer = 0;
             checkAchievements();
         }
@@ -480,8 +476,8 @@ public class Main {
             }
         }
 
-        // Auto-save: every 1800 frames (~1 minute)
-        if (totalFrames % 1800 == 0) {
+        // Auto-save
+        if (totalFrames % GameConstants.AUTO_SAVE_INTERVAL == 0) {
             autoSave();
         }
     }
@@ -494,7 +490,7 @@ public class Main {
         final PoopWindow[] holder = new PoopWindow[1];
         holder[0] = new PoopWindow(poop, () -> {
             poopWindows.remove(holder[0]);
-            addMoney(5, null);
+            addMoney(GameConstants.POOP_CLICK_REWARD, null);
         });
         poopWindows.add(holder[0]);
         applySentBackState(holder[0]);
@@ -512,18 +508,7 @@ public class Main {
                 savePendingLegacy();
 
                 // Determine cause of death
-                String cause;
-                if (h.getAgeFrames() >= h.getLifespanFrames()) {
-                    cause = "\uB178\uD658";
-                } else if (h.getHunger() <= 0) {
-                    cause = "\uBC30\uACE0\uD514 \uBD80\uC871";
-                } else if (h.getHappiness() <= 0) {
-                    cause = "\uD589\uBCF5 \uBD80\uC871";
-                } else if (h.getEnergy() <= 0) {
-                    cause = "\uCCB4\uB825 \uBD80\uC871";
-                } else {
-                    cause = "\uAC8C\uC784 \uD3EC\uAE30";
-                }
+                String cause = hamsterManager.getCauseOfDeath(h);
                 journal.addEntry(h, cause);
                 statistics.totalDeaths++;
 
@@ -672,16 +657,6 @@ public class Main {
         if (confirm != JOptionPane.YES_OPTION) return;
 
         // Create baby hamster
-        HamsterColor babyColor = random.nextBoolean() ? parent1.getColor() : parent2.getColor();
-        int babyGen = Math.max(parent1.getGeneration(), parent2.getGeneration()) + 1;
-
-        // Baby inherits max of parents' legacy bonuses
-        int babyHungerBonus = Math.max(parent1.getLegacyHungerBonus(), parent2.getLegacyHungerBonus());
-        int babyHappinessBonus = Math.max(parent1.getLegacyHappinessBonus(), parent2.getLegacyHappinessBonus());
-        int babyEnergyBonus = Math.max(parent1.getLegacyEnergyBonus(), parent2.getLegacyEnergyBonus());
-        int babyLifespanBonus = Math.max(parent1.getLegacyLifespanBonus(), parent2.getLegacyLifespanBonus());
-        int babyMaxStatBonus = Math.max(parent1.getLegacyMaxStatBonus(), parent2.getLegacyMaxStatBonus());
-
         String name = JOptionPane.showInputDialog(controlPanel,
                 "\uC544\uAE30 \uD584\uC2A4\uD130\uC758 \uC774\uB984\uC744 \uC785\uB825\uD558\uC138\uC694:",
                 "\uC0C8 \uD584\uC2A4\uD130");
@@ -690,34 +665,10 @@ public class Main {
         }
 
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(
-                GraphicsEnvironment.getLocalGraphicsEnvironment()
-                        .getDefaultScreenDevice().getDefaultConfiguration());
-        int groundY = screenSize.height - insets.bottom - 100;
+        int groundY = hamsterManager.getGroundY(screenSize);
 
-        int minDays = metaProgress.getMinLifespanDays();
-        int maxDays = metaProgress.getMaxLifespanDays();
-        int lifespanFrames = (minDays + random.nextInt(maxDays - minDays + 1)) * Hamster.FRAMES_PER_DAY;
-
-        Hamster baby = new Hamster(screenSize.width, 10, babyColor, lifespanFrames);
-        baby.setName(name.trim());
-        baby.setGeneration(babyGen);
-        baby.setLegacyHungerBonus(babyHungerBonus);
-        baby.setLegacyHappinessBonus(babyHappinessBonus);
-        baby.setLegacyEnergyBonus(babyEnergyBonus);
-        baby.setLegacyLifespanBonus(babyLifespanBonus);
-        baby.setLegacyMaxStatBonus(babyMaxStatBonus);
-        baby.applyLegacyBonuses();
-        applyMetaValues(baby);
-        applyStartingStats(baby);
-        if (baby.getPersonality() != null) {
-            achievementManager.personalitiesSeen.add(baby.getPersonality().name());
-        }
-        achievementManager.colorsSeen.add(babyColor.name());
-        // Copy global accessories to baby
-        for (String accName : achievementManager.accessoriesBought) {
-            baby.getOwnedAccessories().add(accName);
-        }
+        Hamster baby = hamsterManager.createBabyHamster(screenSize.width, parent1, parent2, name.trim());
+        hamsterManager.registerWithAchievements(baby, achievementManager);
         hamsters.add(baby);
         hamstersRaised++;
         statistics.totalHamstersRaised++;
@@ -726,6 +677,7 @@ public class Main {
 
         int offsetX = (hamsters.size() - 1) * 80;
         HamsterWindow w = new HamsterWindow(baby);
+        w.setContextMenuCallback(contextMenuCallback);
         w.setLocation(screenSize.width / 2 - 40 + offsetX, groundY);
         hamsterWindows.add(w);
         applySentBackState(w);
@@ -738,28 +690,12 @@ public class Main {
         autoSave();
 
         JOptionPane.showMessageDialog(controlPanel,
-                "\uC544\uAE30 \uD584\uC2A4\uD130 \"" + baby.getName() + "\"\uC774(\uAC00) \uD0DC\uC5B4\uB0AC\uC2B5\uB2C8\uB2E4! (" + babyGen + "\uC138\uB300)\n" +
+                "\uC544\uAE30 \uD584\uC2A4\uD130 \"" + baby.getName() + "\"\uC774(\uAC00) \uD0DC\uC5B4\uB0AC\uC2B5\uB2C8\uB2E4! (" + baby.getGeneration() + "\uC138\uB300)\n" +
                 "\uBD80\uBAA8: " + parent1.getName() + " \u00D7 " + parent2.getName(),
                 "\uAD50\uBC30 \uC131\uACF5!", JOptionPane.INFORMATION_MESSAGE);
     }
 
-    private void applyMetaValues(Hamster h) {
-        h.setAgingSpeed(metaProgress.getAgingSpeed());
-        h.setActionGain(metaProgress.getActionGain());
-        h.setDrainMultiplier(metaProgress.getDrainMultiplier());
-        h.setDrainInterval(metaProgress.getDrainInterval());
-        h.setCoinBonus(metaProgress.getCoinBonus());
-        h.setPoopChanceMultiplier(metaProgress.getPoopChanceMultiplier());
-        h.setPoopPenaltyMultiplier(metaProgress.getPoopPenaltyMultiplier());
-        h.setBuffDurationMultiplier(metaProgress.getBuffDurationMultiplier());
-    }
-
-    private void applyStartingStats(Hamster h) {
-        int stats = metaProgress.getStartingStats();
-        h.setHunger(stats);
-        h.setHappiness(stats);
-        h.setEnergy(stats);
-    }
+    // applyMetaValues and applyStartingStats are now in HamsterManager
 
     private void autoSave() {
         GameState state = GameState.capture(money, totalFrames, hamsters, hamsterWindows, poopWindows, hamstersRaised, foodInventory, hamsterPurchaseCount);
@@ -920,30 +856,15 @@ public class Main {
             }
 
             Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-            Insets insets = Toolkit.getDefaultToolkit().getScreenInsets(
-                    GraphicsEnvironment.getLocalGraphicsEnvironment()
-                            .getDefaultScreenDevice().getDefaultConfiguration());
-            int groundY = screenSize.height - insets.bottom - 100;
+            int groundY = hamsterManager.getGroundY(screenSize);
 
-            int minDays = metaProgress.getMinLifespanDays();
-            int maxDays = metaProgress.getMaxLifespanDays();
-            int lifespanFrames = (minDays + random.nextInt(maxDays - minDays + 1)) * Hamster.FRAMES_PER_DAY;
-
-            Hamster h = new Hamster(screenSize.width, 10, purchased, lifespanFrames);
-            h.setName(name.trim());
-            applyMetaValues(h);
-            applyStartingStats(h);
-            if (h.getPersonality() != null) {
-                achievementManager.personalitiesSeen.add(h.getPersonality().name());
-            }
-            // Copy global accessories to new hamster
-            for (String accName : achievementManager.accessoriesBought) {
-                h.getOwnedAccessories().add(accName);
-            }
+            Hamster h = hamsterManager.createHamster(screenSize.width, purchased, name.trim());
+            hamsterManager.registerWithAchievements(h, achievementManager);
             hamsters.add(h);
 
             int offsetX = (hamsters.size() - 1) * 80;
             HamsterWindow w = new HamsterWindow(h);
+            w.setContextMenuCallback(contextMenuCallback);
             w.setLocation(screenSize.width / 2 - 40 + offsetX, groundY);
             hamsterWindows.add(w);
             applySentBackState(w);
@@ -1387,14 +1308,7 @@ public class Main {
                 eqLabel.setBorder(BorderFactory.createEmptyBorder(0, 0, 1, 0));
                 bottomPanel.add(eqLabel, BorderLayout.CENTER);
             } else {
-                String slotName;
-                switch (acc.getSlot()) {
-                    case HEAD: slotName = "\uBA38\uB9AC"; break;
-                    case FACE: slotName = "\uC5BC\uAD74"; break;
-                    case NECK: slotName = "\uBAA9"; break;
-                    case BODY: slotName = "\uBAB8"; break;
-                    default: slotName = "";
-                }
+                String slotName = com.hamster.ui.UIHelper.getSlotDisplayName(acc.getSlot());
                 JLabel nameLabel = new JLabel(slotName, SwingConstants.CENTER);
                 nameLabel.setFont(new Font("Noto Sans KR", Font.PLAIN, 8));
                 nameLabel.setForeground(new Color(120, 100, 60));
@@ -1527,7 +1441,7 @@ public class Main {
         try (FileOutputStream fos = new FileOutputStream(file)) {
             props.store(fos, "Pending Legacy");
         } catch (IOException e) {
-            e.printStackTrace();
+            GameLogger.error("Failed to save pending legacy", e);
         }
     }
 
@@ -1620,7 +1534,7 @@ public class Main {
 
             SystemTray.getSystemTray().add(trayIcon);
         } catch (Exception e) {
-            e.printStackTrace();
+            GameLogger.error("Failed to setup tray icon", e);
         }
     }
 

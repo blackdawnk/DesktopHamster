@@ -1,4 +1,5 @@
 package com.hamster.system;
+import com.hamster.model.GameConstants;
 import com.hamster.model.Hamster;
 
 import java.io.*;
@@ -6,7 +7,7 @@ import java.util.Properties;
 
 public class MetaProgress {
 
-    private static final String SAVE_DIR = System.getProperty("user.home") + "/.desktophamster/";
+    private static final String SAVE_DIR = GameConstants.SAVE_DIR;
     private static final String META_FILE = SAVE_DIR + "meta.properties";
 
     public int sunflowerSeeds = 0;
@@ -263,7 +264,7 @@ public class MetaProgress {
         try (FileOutputStream fos = new FileOutputStream(META_FILE)) {
             props.store(fos, "DesktopHamster Meta Progress");
         } catch (IOException e) {
-            e.printStackTrace();
+            GameLogger.error("Failed to save meta progress", e);
         }
     }
 
@@ -276,7 +277,7 @@ public class MetaProgress {
         try (FileInputStream fis = new FileInputStream(file)) {
             props.load(fis);
         } catch (IOException e) {
-            e.printStackTrace();
+            GameLogger.error("Failed to load meta progress", e);
             return meta;
         }
 

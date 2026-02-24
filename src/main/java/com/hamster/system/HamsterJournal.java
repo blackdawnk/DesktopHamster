@@ -8,7 +8,7 @@ import java.util.Properties;
 
 public class HamsterJournal {
 
-    private static final String SAVE_DIR = System.getProperty("user.home") + "/.desktophamster/";
+    private static final String SAVE_DIR = com.hamster.model.GameConstants.SAVE_DIR;
     private static final String JOURNAL_FILE = SAVE_DIR + "journal.properties";
 
     public static class JournalEntry {
@@ -78,7 +78,7 @@ public class HamsterJournal {
         try (FileOutputStream fos = new FileOutputStream(JOURNAL_FILE)) {
             props.store(fos, "DesktopHamster Journal");
         } catch (IOException e) {
-            e.printStackTrace();
+            GameLogger.error("Failed to save journal", e);
         }
     }
 

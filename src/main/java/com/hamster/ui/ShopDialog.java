@@ -413,14 +413,7 @@ public class ShopDialog extends JDialog {
     }
 
     private void addSlotSection(JPanel parent, Accessory.Slot slot, List<Accessory> items) {
-        String slotDisplay;
-        switch (slot) {
-            case HEAD: slotDisplay = "\uBA38\uB9AC"; break;
-            case FACE: slotDisplay = "\uC5BC\uAD74"; break;
-            case NECK: slotDisplay = "\uBAA9"; break;
-            case BODY: slotDisplay = "\uBAB8"; break;
-            default: slotDisplay = slot.name();
-        }
+        String slotDisplay = UIHelper.getSlotDisplayName(slot);
         JLabel slotLabel = new JLabel("\u2500 " + slotDisplay + " \u2500");
         slotLabel.setFont(new Font(FONT_NAME, Font.BOLD, 11));
         slotLabel.setForeground(new Color(120, 90, 40));

@@ -1,12 +1,14 @@
 package com.hamster.model;
 
+import com.hamster.system.GameLogger;
+
 import java.awt.event.KeyEvent;
 import java.io.*;
 import java.util.Properties;
 
 public class Settings {
 
-    private static final String SAVE_DIR = System.getProperty("user.home") + "/.desktophamster/";
+    private static final String SAVE_DIR = GameConstants.SAVE_DIR;
     private static final String SETTINGS_FILE = SAVE_DIR + "settings.properties";
 
     // Toggle hotkey (hide/show) - default ALT+Q
@@ -45,7 +47,7 @@ public class Settings {
         try (FileOutputStream fos = new FileOutputStream(SETTINGS_FILE)) {
             props.store(fos, "DesktopHamster Settings");
         } catch (IOException e) {
-            e.printStackTrace();
+            GameLogger.error("Failed to save settings", e);
         }
     }
 

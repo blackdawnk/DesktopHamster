@@ -1,11 +1,13 @@
 package com.hamster.model;
 
+import com.hamster.system.GameLogger;
+
 import java.io.*;
 import java.util.Properties;
 
 public class GameStatistics {
 
-    private static final String SAVE_DIR = System.getProperty("user.home") + "/.desktophamster/";
+    private static final String SAVE_DIR = GameConstants.SAVE_DIR;
     private static final String STATS_FILE = SAVE_DIR + "statistics.properties";
 
     public long totalPlayTimeFrames = 0;
@@ -50,7 +52,7 @@ public class GameStatistics {
         try (FileOutputStream fos = new FileOutputStream(STATS_FILE)) {
             props.store(fos, "DesktopHamster Statistics");
         } catch (IOException e) {
-            e.printStackTrace();
+            GameLogger.error("Failed to save statistics", e);
         }
     }
 

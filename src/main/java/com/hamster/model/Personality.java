@@ -58,4 +58,14 @@ public enum Personality {
         Personality[] values = values();
         return values[rng.nextInt(values.length)];
     }
+
+    /**
+     * Null-safe random personality. Always returns a non-null value.
+     */
+    public static Personality randomSafe(Random rng) {
+        Personality[] values = values();
+        if (values.length == 0) return CHEERFUL;
+        if (rng == null) return CHEERFUL;
+        return values[rng.nextInt(values.length)];
+    }
 }

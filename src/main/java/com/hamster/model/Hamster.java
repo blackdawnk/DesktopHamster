@@ -12,7 +12,7 @@ public class Hamster {
         IDLE, WALKING, EATING, SLEEPING, HAPPY, RUNNING_WHEEL
     }
 
-    public static final int FRAMES_PER_DAY = 9000; // ~5 minutes real time
+    public static final int FRAMES_PER_DAY = GameConstants.FRAMES_PER_DAY;
 
     private int x, y;
     private int direction = 1; // 1: right, -1: left (for rendering)
@@ -59,7 +59,7 @@ public class Hamster {
     private int maxHunger = 100;
     private int maxHappiness = 100;
     private int maxEnergy = 100;
-    public static final int MAX_STAT_CAP = 200;
+    public static final int MAX_STAT_CAP = GameConstants.MAX_STAT_CAP;
 
     // Roguelike fields
     private int generation = 1;
@@ -87,7 +87,7 @@ public class Hamster {
         this.x = screenWidth / 2;
         this.y = groundY;
         this.color = color;
-        this.personality = Personality.random(random);
+        this.personality = Personality.randomSafe(random);
         // Random lifespan: 20~35 days
         this.lifespanFrames = (20 + random.nextInt(16)) * FRAMES_PER_DAY;
     }
@@ -98,7 +98,7 @@ public class Hamster {
         this.x = screenWidth / 2;
         this.y = groundY;
         this.color = color;
-        this.personality = Personality.random(random);
+        this.personality = Personality.randomSafe(random);
         this.lifespanFrames = lifespanFrames;
     }
 
@@ -268,7 +268,7 @@ public class Hamster {
         }
     }
 
-    private static final int USER_ACTION_ANIM_FRAMES = 90; // ~3 seconds animation
+    private static final int USER_ACTION_ANIM_FRAMES = GameConstants.USER_ACTION_ANIM_FRAMES;
 
     public boolean feed() {
         if (dead) return false;
@@ -404,14 +404,6 @@ public class Hamster {
         return mult;
     }
 
-    public double getCoinMultiplier() {
-        double mult = getBuffMultiplier(Buff.Type.COIN_BONUS);
-        for (Accessory acc : equippedAccessories) {
-            mult += acc.getCoinBonus();
-        }
-        return mult;
-    }
-
     public void addBuff(Buff buff) {
         if (buffDurationMultiplier != 1.0) {
             buff = new Buff(buff.getType(), buff.getMultiplier(),
@@ -448,7 +440,7 @@ public class Hamster {
         return !dead && ageFrames >= breedAgeFrames && breedCooldownFrames <= 0
                 && hunger >= 50 && happiness >= 50 && energy >= 50;
     }
-    public void startBreedCooldown() { breedCooldownFrames = 2 * FRAMES_PER_DAY; }
+    public void startBreedCooldown() { breedCooldownFrames = GameConstants.BREED_COOLDOWN_DAYS * FRAMES_PER_DAY; }
     public int getBreedCooldownFrames() { return breedCooldownFrames; }
     public void setBreedCooldownFrames(int v) { this.breedCooldownFrames = v; }
 
@@ -514,5 +506,30 @@ public class Hamster {
     public int getInteractionCooldownFrames() { return interactionCooldownFrames; }
     public void setInteractionCooldownFrames(int v) { this.interactionCooldownFrames = v; }
     public boolean canInteract() { return !dead && interactionCooldownFrames <= 0; }
-    public void startInteractionCooldown() { this.interactionCooldownFrames = 2700; }
+    public void startInteractionCooldown() { this.interactionCooldownFrames = GameConstants.INTERACTION_COOLDOWN; }
+
+    /**
+     * Calculate set bonus: if all accessory slots are filled, grant extra coin bonus.
+     * @return bonus multiplier (0.0 if no set, 0.10 = 10% if full set)
+     */
+    public double getSetBonus() {
+        if (equippedAccessories.isEmpty()) return 0.0;
+        java.util.Set<Accessory.Slot> filledSlots = new java.util.HashSet<Accessory.Slot>();
+        for (Accessory acc : equippedAccessories) {
+            filledSlots.add(acc.getSlot());
+        }
+        if (filledSlots.size() >= Accessory.SLOT_COUNT) {
+            return 0.10; // 10% bonus for full set
+        }
+        return 0.0;
+    }
+
+    public double getCoinMultiplier() {
+        double mult = getBuffMultiplier(Buff.Type.COIN_BONUS);
+        for (Accessory acc : equippedAccessories) {
+            mult += acc.getCoinBonus();
+        }
+        mult += getSetBonus();
+        return mult;
+    }
 }
