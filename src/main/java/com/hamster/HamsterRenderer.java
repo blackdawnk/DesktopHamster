@@ -96,6 +96,11 @@ public class HamsterRenderer {
             drawSparkles(g2, frame, baseY);
         }
 
+        // --- accessories overlay ---
+        for (Accessory acc : hamster.getEquippedAccessories()) {
+            acc.draw(g2, dir, baseY);
+        }
+
         g2.setTransform(original);
 
         // --- name above head (drawn after transform reset so text is never flipped) ---

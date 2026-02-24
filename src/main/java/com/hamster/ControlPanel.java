@@ -9,14 +9,14 @@ import java.util.List;
 public class ControlPanel extends JFrame {
 
     private static final String FONT_NAME = "Noto Sans KR";
-    public static final String VERSION = "1.2.5";
+    public static final String VERSION = "2.0.1";
 
     /** Wraps emoji characters in HTML with Segoe UI Emoji font for proper rendering. */
     static String wrapEmoji(String text) {
         boolean hasEmoji = false;
         for (int i = 0; i < text.length(); i++) {
             char c = text.charAt(i);
-            if (Character.isHighSurrogate(c) || c == '\u2B50' || c == '\u2600') {
+            if (Character.isHighSurrogate(c) || c == '\u2B50' || c == '\u2600' || c == '\u2699') {
                 hasEmoji = true;
                 break;
             }
@@ -29,7 +29,7 @@ public class ControlPanel extends JFrame {
                 sb.append("<span style='font-family:Segoe UI Emoji'>")
                   .append(c).append(text.charAt(i + 1)).append("</span>");
                 i++;
-            } else if (c == '\u2B50' || c == '\u2600') {
+            } else if (c == '\u2B50' || c == '\u2600' || c == '\u2699') {
                 sb.append("<span style='font-family:Segoe UI Emoji'>").append(c);
                 if (i + 1 < text.length() && text.charAt(i + 1) == '\uFE0F') {
                     sb.append(text.charAt(++i));
@@ -51,6 +51,16 @@ public class ControlPanel extends JFrame {
         void onSleep(Hamster h);
         void onOpenShop();
         void onBreed();
+        void onShowUpgradeInfo();
+        void onOpacityChanged(float opacity);
+        void onOpenSettings();
+        void onKillAll();
+        void onKillHamster(Hamster h);
+        void onGatherAll();
+        void onFreezeAll();
+        void onShowAchievements();
+        void onShowJournal();
+        void onShowStatistics();
     }
 
     private List<Hamster> hamsters;
@@ -59,14 +69,16 @@ public class ControlPanel extends JFrame {
     private JLabel moneyLabel;
     private JLabel poopLabel;
     private List<HamsterUI> hamsterUIs = new ArrayList<>();
+    private int initialOpacity = 100;
 
     private boolean dragging = false;
     private int dragOffsetX, dragOffsetY;
 
-    public ControlPanel(List<Hamster> hamsters, Callbacks callbacks) {
+    public ControlPanel(List<Hamster> hamsters, Callbacks callbacks, int savedOpacity) {
         super("데스크탑 햄스터");
         this.hamsters = hamsters;
         this.callbacks = callbacks;
+        this.initialOpacity = savedOpacity;
 
         setUndecorated(true);
         setAlwaysOnTop(true);
@@ -85,6 +97,7 @@ public class ControlPanel extends JFrame {
 
         add(mainPanel);
         pack();
+        if (getWidth() < 420) setSize(420, getHeight());
 
         // Position at bottom-left of screen
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
@@ -105,9 +118,10 @@ public class ControlPanel extends JFrame {
         JPanel titleBar = new JPanel(new BorderLayout(0, 0));
         titleBar.setOpaque(false);
         titleBar.setAlignmentX(Component.LEFT_ALIGNMENT);
-        titleBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 28));
+        titleBar.setMaximumSize(new Dimension(Integer.MAX_VALUE, 36));
 
-        JLabel titleLabel = new JLabel(wrapEmoji("\uD83D\uDC39 데스크탑 햄스터 v" + VERSION));
+        TimeOfDay tod = TimeOfDay.getCurrentPeriod();
+        JLabel titleLabel = new JLabel(wrapEmoji("\uD83D\uDC39 \uB370\uC2A4\uD06C\uD0D1 \uD584\uC2A4\uD130 " + tod.getEmoji() + tod.getDisplayName()));
         titleLabel.setFont(new Font(FONT_NAME, Font.BOLD, 15));
         titleLabel.setForeground(new Color(80, 50, 20));
         titleBar.add(titleLabel, BorderLayout.CENTER);
@@ -175,7 +189,124 @@ public class ControlPanel extends JFrame {
         JButton breedBtn = createButton("\uAD50\uBC30", new Color(255, 200, 220), e -> callbacks.onBreed());
         bottomBtns.add(breedBtn);
 
+        JButton upgradeInfoBtn = createButton("\uC5C5\uADF8\uB808\uC774\uB4DC", new Color(220, 210, 255), e -> callbacks.onShowUpgradeInfo());
+        bottomBtns.add(upgradeInfoBtn);
+
         mainPanel.add(bottomBtns);
+
+        // 2.0 buttons row
+        JPanel newBtns = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
+        newBtns.setOpaque(false);
+        newBtns.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JButton achBtn = createSmallButton("\uC5C5\uC801", new Color(255, 230, 180), e -> callbacks.onShowAchievements());
+        achBtn.setToolTipText("\uC5C5\uC801 \uBAA9\uB85D \uBCF4\uAE30");
+        newBtns.add(achBtn);
+
+        JButton journalBtn = createSmallButton("\uB3C4\uAC10", new Color(220, 240, 255), e -> callbacks.onShowJournal());
+        journalBtn.setToolTipText("\uD584\uC2A4\uD130 \uB3C4\uAC10 \uBCF4\uAE30");
+        newBtns.add(journalBtn);
+
+        JButton statsBtn = createSmallButton("\uD1B5\uACC4", new Color(230, 255, 230), e -> callbacks.onShowStatistics());
+        statsBtn.setToolTipText("\uD1B5\uACC4 \uBCF4\uAE30");
+        newBtns.add(statsBtn);
+
+        mainPanel.add(newBtns);
+
+        // Separator before utility
+        mainPanel.add(createSeparator());
+        mainPanel.add(Box.createVerticalStrut(4));
+
+        JPanel bottomBtns2 = new JPanel(new FlowLayout(FlowLayout.CENTER, 8, 0));
+        bottomBtns2.setOpaque(false);
+        bottomBtns2.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JButton settingsBtn = new JButton(wrapEmoji("\u2699"));
+        settingsBtn.setFont(new Font(FONT_NAME, Font.PLAIN, 16));
+        settingsBtn.setPreferredSize(new Dimension(32, 26));
+        settingsBtn.setBackground(new Color(230, 225, 215));
+        settingsBtn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(new Color(180, 170, 150), 1, true),
+                BorderFactory.createEmptyBorder(1, 4, 1, 4)
+        ));
+        settingsBtn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        settingsBtn.setToolTipText("\uC124\uC815");
+        settingsBtn.addActionListener(e -> callbacks.onOpenSettings());
+        bottomBtns2.add(settingsBtn);
+
+        mainPanel.add(bottomBtns2);
+
+        // Utility buttons (gather, freeze, kill)
+        JPanel utilBtns = new JPanel(new FlowLayout(FlowLayout.CENTER, 6, 0));
+        utilBtns.setOpaque(false);
+        utilBtns.setAlignmentX(Component.LEFT_ALIGNMENT);
+
+        JButton gatherBtn = createSmallButton("\uBAA8\uC73C\uAE30", new Color(200, 220, 200), e -> callbacks.onGatherAll());
+        gatherBtn.setToolTipText("\uBAA8\uB4E0 \uD584\uC2A4\uD130\uB97C \uD328\uB110 \uC606\uC73C\uB85C \uBAA8\uC74C");
+        utilBtns.add(gatherBtn);
+
+        JButton freezeBtn = createSmallButton("\uC77C\uC2DC\uC815\uC9C0", new Color(180, 210, 240), null);
+        freezeBtn.setToolTipText("\uBAA8\uB4E0 \uD584\uC2A4\uD130 \uC77C\uC2DC\uC815\uC9C0/\uC7AC\uAC1C");
+        freezeBtn.addActionListener(e -> {
+            callbacks.onFreezeAll();
+            if (freezeBtn.getText().equals("\uC77C\uC2DC\uC815\uC9C0")) {
+                freezeBtn.setText("\uC7AC\uAC1C");
+                freezeBtn.setBackground(new Color(255, 220, 150));
+            } else {
+                freezeBtn.setText("\uC77C\uC2DC\uC815\uC9C0");
+                freezeBtn.setBackground(new Color(180, 210, 240));
+            }
+        });
+        utilBtns.add(freezeBtn);
+
+        JButton killBtn = createSmallButton("\uAC8C\uC784\uD3EC\uAE30", new Color(255, 170, 170), e -> callbacks.onKillAll());
+        killBtn.setToolTipText("\uBAA8\uB4E0 \uD584\uC2A4\uD130\uB97C \uBCF4\uB0B4\uACE0 \uAC8C\uC784 \uC885\uB8CC");
+        utilBtns.add(killBtn);
+
+        mainPanel.add(utilBtns);
+
+        // Opacity slider
+        JPanel opacityPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 5, 2));
+        opacityPanel.setOpaque(false);
+        opacityPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JLabel opacityLabel = new JLabel("\uD22C\uBA85\uB3C4");
+        opacityLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 11));
+        opacityPanel.add(opacityLabel);
+        JSlider opacitySlider = new JSlider(20, 100, initialOpacity);
+        opacitySlider.setPreferredSize(new Dimension(180, 22));
+        opacitySlider.setOpaque(false);
+
+        // Click-to-jump: clicking the track moves to that position directly
+        opacitySlider.addMouseListener(new MouseAdapter() {
+            @Override
+            public void mousePressed(MouseEvent e) {
+                int trackWidth = opacitySlider.getWidth();
+                int min = opacitySlider.getMinimum();
+                int max = opacitySlider.getMaximum();
+                int target = min + (int) ((double) e.getX() / trackWidth * (max - min));
+                target = Math.max(min, Math.min(max, target));
+                animateSlider(opacitySlider, target);
+            }
+        });
+
+        opacitySlider.addChangeListener(e -> {
+            float val = opacitySlider.getValue() / 100f;
+            callbacks.onOpacityChanged(val);
+        });
+        opacityPanel.add(opacitySlider);
+        mainPanel.add(opacityPanel);
+
+        // Version label at bottom-right
+        JLabel versionLabel = new JLabel("(" + VERSION + ")");
+        versionLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 9));
+        versionLabel.setForeground(new Color(180, 170, 150));
+        versionLabel.setAlignmentX(Component.RIGHT_ALIGNMENT);
+        versionLabel.setHorizontalAlignment(SwingConstants.RIGHT);
+        JPanel versionPanel = new JPanel(new FlowLayout(FlowLayout.RIGHT, 0, 0));
+        versionPanel.setOpaque(false);
+        versionPanel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        versionPanel.add(versionLabel);
+        mainPanel.add(versionPanel);
     }
 
     private JPanel createHamsterSection(HamsterUI ui, Hamster hamster) {
@@ -187,6 +318,9 @@ public class ControlPanel extends JFrame {
 
         ui.nameLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         section.add(ui.nameLabel);
+
+        ui.personalityLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
+        section.add(ui.personalityLabel);
 
         ui.stateLabel.setAlignmentX(Component.LEFT_ALIGNMENT);
         section.add(ui.stateLabel);
@@ -221,6 +355,14 @@ public class ControlPanel extends JFrame {
         btnRow2.add(createButton("잠자기", new Color(150, 185, 255), e -> callbacks.onSleep(hamster)));
         section.add(btnRow2);
 
+        JPanel btnRow3 = new JPanel(new FlowLayout(FlowLayout.RIGHT, 5, 0));
+        btnRow3.setOpaque(false);
+        btnRow3.setAlignmentX(Component.LEFT_ALIGNMENT);
+        JButton killOneBtn = createSmallButton("\uBCF4\uB0B4\uAE30", new Color(255, 180, 180), e -> callbacks.onKillHamster(hamster));
+        killOneBtn.setToolTipText("\uC774 \uD584\uC2A4\uD130\uB97C \uBCF4\uB0B4\uAE30");
+        btnRow3.add(killOneBtn);
+        section.add(btnRow3);
+
         return section;
     }
 
@@ -251,6 +393,7 @@ public class ControlPanel extends JFrame {
         moneyLabel.setText(wrapEmoji("\uD83D\uDCB0 " + money + " 코인"));
         if (sizeChanged) {
             pack();
+            if (getWidth() < 420) setSize(420, getHeight());
         }
     }
 
@@ -261,6 +404,7 @@ public class ControlPanel extends JFrame {
         mainPanel.revalidate();
         mainPanel.repaint();
         pack();
+        if (getWidth() < 420) setSize(420, getHeight());
         setLocation(loc);
     }
 
@@ -327,6 +471,7 @@ public class ControlPanel extends JFrame {
     private static class HamsterUI {
         final Hamster hamster;
         final JLabel nameLabel;
+        final JLabel personalityLabel;
         final JLabel stateLabel;
         final JLabel legacyLabel;
         final JLabel buffLabel;
@@ -339,6 +484,11 @@ public class ControlPanel extends JFrame {
             nameLabel = new JLabel(wrapEmoji("\uD83D\uDC39 " + hamster.getName()));
             nameLabel.setFont(new Font(FONT_NAME, Font.BOLD, 13));
             nameLabel.setForeground(new Color(80, 50, 20));
+
+            String pName = hamster.getPersonality() != null ? hamster.getPersonality().getDisplayName() : "";
+            personalityLabel = new JLabel(" \uC131\uACA9: " + pName);
+            personalityLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 11));
+            personalityLabel.setForeground(new Color(130, 90, 60));
 
             stateLabel = new JLabel(" \uC0C1\uD0DC: \uB300\uAE30");
             stateLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 12));
@@ -365,8 +515,8 @@ public class ControlPanel extends JFrame {
             bar.setStringPainted(true);
             bar.setForeground(color);
             bar.setBackground(new Color(240, 240, 240));
-            bar.setPreferredSize(new Dimension(110, 16));
-            bar.setMaximumSize(new Dimension(110, 16));
+            bar.setPreferredSize(new Dimension(220, 18));
+            bar.setMaximumSize(new Dimension(320, 18));
             bar.setFont(new Font(FONT_NAME, Font.PLAIN, 10));
             return bar;
         }
@@ -387,17 +537,48 @@ public class ControlPanel extends JFrame {
     }
 
     private JPanel createBarPanel(String label, JProgressBar bar) {
-        JPanel p = new JPanel(new BorderLayout(6, 0));
+        JPanel p = new JPanel(new BorderLayout(8, 0));
         p.setOpaque(false);
         p.setAlignmentX(Component.LEFT_ALIGNMENT);
-        p.setMaximumSize(new Dimension(200, 18));
+        p.setMaximumSize(new Dimension(380, 22));
         JLabel l = new JLabel(label);
         l.setFont(new Font(FONT_NAME, Font.PLAIN, 12));
         l.setForeground(new Color(80, 60, 30));
-        l.setPreferredSize(new Dimension(48, 16));
+        l.setPreferredSize(new Dimension(55, 18));
         p.add(l, BorderLayout.WEST);
         p.add(bar, BorderLayout.CENTER);
         return p;
+    }
+
+    private void animateSlider(JSlider slider, int target) {
+        Timer timer = new Timer(15, null);
+        timer.addActionListener(e -> {
+            int current = slider.getValue();
+            if (current == target) {
+                timer.stop();
+                return;
+            }
+            int diff = target - current;
+            int step = (int) Math.signum(diff) * Math.max(1, Math.abs(diff) / 4);
+            slider.setValue(current + step);
+        });
+        timer.start();
+    }
+
+    private JButton createSmallButton(String text, Color color, ActionListener action) {
+        JButton btn = new JButton(text);
+        btn.setFont(new Font(FONT_NAME, Font.PLAIN, 11));
+        btn.setFocusPainted(false);
+        btn.setBackground(color);
+        btn.setForeground(new Color(80, 50, 20));
+        btn.setPreferredSize(new Dimension(80, 26));
+        btn.setBorder(BorderFactory.createCompoundBorder(
+                BorderFactory.createLineBorder(color.darker(), 1, true),
+                BorderFactory.createEmptyBorder(3, 8, 3, 8)
+        ));
+        btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
+        btn.addActionListener(action);
+        return btn;
     }
 
     private JButton createButton(String text, Color color, ActionListener action) {
@@ -406,10 +587,10 @@ public class ControlPanel extends JFrame {
         btn.setFocusPainted(false);
         btn.setBackground(color);
         btn.setForeground(new Color(80, 50, 20));
-        btn.setPreferredSize(new Dimension(78, 28));
+        btn.setPreferredSize(new Dimension(90, 30));
         btn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(color.darker(), 1, true),
-                BorderFactory.createEmptyBorder(3, 10, 3, 10)
+                BorderFactory.createEmptyBorder(4, 12, 4, 12)
         ));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
         btn.addActionListener(action);

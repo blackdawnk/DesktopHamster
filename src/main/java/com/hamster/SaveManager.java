@@ -36,6 +36,7 @@ public class SaveManager {
         props.setProperty("money", String.valueOf(state.money));
         props.setProperty("totalFrames", String.valueOf(state.totalFrames));
         props.setProperty("hamstersRaised", String.valueOf(state.hamstersRaised));
+        props.setProperty("hamsterPurchaseCount", String.valueOf(state.hamsterPurchaseCount));
 
         props.setProperty("hamsterCount", String.valueOf(state.hamsters.size()));
         for (int i = 0; i < state.hamsters.size(); i++) {
@@ -71,6 +72,10 @@ public class SaveManager {
                 props.setProperty(bp + "remainingFrames", String.valueOf(bd.remainingFrames));
                 props.setProperty(bp + "description", bd.description);
             }
+            // 2.0 fields
+            props.setProperty(prefix + "personality", hd.personality != null ? hd.personality : "CHEERFUL");
+            props.setProperty(prefix + "equippedAccessories", joinList(hd.equippedAccessories));
+            props.setProperty(prefix + "ownedAccessories", joinList(hd.ownedAccessories));
         }
 
         props.setProperty("poopCount", String.valueOf(state.poops.size()));
@@ -79,6 +84,11 @@ public class SaveManager {
             String prefix = "poop." + i + ".";
             props.setProperty(prefix + "screenX", String.valueOf(pd.screenX));
             props.setProperty(prefix + "screenY", String.valueOf(pd.screenY));
+        }
+
+        // Food inventory
+        if (state.foodInventory != null) {
+            state.foodInventory.saveToProperties(props, "inv.");
         }
 
         File tempFile = new File(path + ".tmp");
@@ -94,6 +104,55 @@ public class SaveManager {
             targetFile.delete();
         }
         tempFile.renameTo(targetFile);
+    }
+
+    /** Returns a brief summary of the auto-save for display in the start dialog, or null if none. */
+    public static String getAutoSaveSummary() {
+        File file = new File(AUTOSAVE_FILE);
+        if (!file.exists()) return null;
+        Properties props = new Properties();
+        try (FileInputStream fis = new FileInputStream(file)) {
+            props.load(fis);
+        } catch (IOException e) {
+            return null;
+        }
+        int count = Integer.parseInt(props.getProperty("hamsterCount", "0"));
+        int money = Integer.parseInt(props.getProperty("money", "0"));
+        if (count == 0) return null;
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < count; i++) {
+            String prefix = "hamster." + i + ".";
+            String name = props.getProperty(prefix + "name", "\uD584\uC2A4\uD130");
+            int gen = Integer.parseInt(props.getProperty(prefix + "generation", "1"));
+            long ageFrames = Long.parseLong(props.getProperty(prefix + "ageFrames", "0"));
+            int ageDays = (int)(ageFrames / 9000);
+            if (i > 0) sb.append(", ");
+            sb.append(name).append("(").append(ageDays).append("\uC77C");
+            if (gen > 1) sb.append(", ").append(gen).append("\uC138\uB300");
+            sb.append(")");
+        }
+        sb.append(" | ").append(money).append("\uCF54\uC778");
+        return sb.toString();
+    }
+
+    private static String joinList(java.util.List<String> list) {
+        StringBuilder sb = new StringBuilder();
+        for (String s : list) {
+            if (sb.length() > 0) sb.append(",");
+            sb.append(s);
+        }
+        return sb.toString();
+    }
+
+    private static java.util.List<String> splitList(String str) {
+        java.util.List<String> list = new ArrayList<>();
+        if (str == null || str.isEmpty()) return list;
+        String[] parts = str.split(",");
+        for (String part : parts) {
+            String trimmed = part.trim();
+            if (!trimmed.isEmpty()) list.add(trimmed);
+        }
+        return list;
     }
 
     private static GameState loadFromFile(String path) {
@@ -112,6 +171,7 @@ public class SaveManager {
         state.money = Integer.parseInt(props.getProperty("money", "0"));
         state.totalFrames = Long.parseLong(props.getProperty("totalFrames", "0"));
         state.hamstersRaised = Integer.parseInt(props.getProperty("hamstersRaised", "1"));
+        state.hamsterPurchaseCount = Integer.parseInt(props.getProperty("hamsterPurchaseCount", "0"));
 
         int hamsterCount = Integer.parseInt(props.getProperty("hamsterCount", "0"));
         state.hamsters = new ArrayList<>();
@@ -150,6 +210,10 @@ public class SaveManager {
                 bd.description = props.getProperty(bp + "description", "");
                 hd.buffs.add(bd);
             }
+            // 2.0 fields
+            hd.personality = props.getProperty(prefix + "personality", "CHEERFUL");
+            hd.equippedAccessories = splitList(props.getProperty(prefix + "equippedAccessories", ""));
+            hd.ownedAccessories = splitList(props.getProperty(prefix + "ownedAccessories", ""));
             state.hamsters.add(hd);
         }
 
@@ -162,6 +226,9 @@ public class SaveManager {
             pd.screenY = Integer.parseInt(props.getProperty(prefix + "screenY", "0"));
             state.poops.add(pd);
         }
+
+        // Food inventory
+        state.foodInventory = FoodInventory.loadFromProperties(props, "inv.");
 
         return state;
     }

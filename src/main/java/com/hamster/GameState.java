@@ -7,8 +7,10 @@ public class GameState {
     int money;
     long totalFrames;
     int hamstersRaised;
+    int hamsterPurchaseCount;
     List<HamsterData> hamsters;
     List<PoopData> poops;
+    FoodInventory foodInventory;
 
     public static class HamsterData {
         String name;
@@ -24,6 +26,10 @@ public class GameState {
         int maxHunger, maxHappiness, maxEnergy;
         int breedCooldownFrames;
         List<BuffData> buffs = new ArrayList<>();
+        // 2.0 fields
+        String personality;
+        List<String> equippedAccessories = new ArrayList<>();
+        List<String> ownedAccessories = new ArrayList<>();
     }
 
     public static class BuffData {
@@ -40,11 +46,15 @@ public class GameState {
     public static GameState capture(int money, long totalFrames,
                                     List<Hamster> hamsters, List<HamsterWindow> windows,
                                     List<PoopWindow> poopWindows,
-                                    int hamstersRaised) {
+                                    int hamstersRaised,
+                                    FoodInventory foodInventory,
+                                    int hamsterPurchaseCount) {
         GameState state = new GameState();
         state.money = money;
         state.totalFrames = totalFrames;
         state.hamstersRaised = hamstersRaised;
+        state.hamsterPurchaseCount = hamsterPurchaseCount;
+        state.foodInventory = foodInventory;
 
         state.hamsters = new ArrayList<>();
         for (int i = 0; i < hamsters.size(); i++) {
@@ -79,6 +89,14 @@ public class GameState {
                 bd.remainingFrames = b.getRemainingFrames();
                 bd.description = b.getDescription();
                 hd.buffs.add(bd);
+            }
+            // 2.0 fields
+            hd.personality = h.getPersonality() != null ? h.getPersonality().name() : "CHEERFUL";
+            for (Accessory acc : h.getEquippedAccessories()) {
+                hd.equippedAccessories.add(acc.name());
+            }
+            for (String owned : h.getOwnedAccessories()) {
+                hd.ownedAccessories.add(owned);
             }
             state.hamsters.add(hd);
         }

@@ -1,9 +1,8 @@
 package com.hamster;
 
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
+
+
 
 public class Hamster {
 
@@ -23,23 +22,36 @@ public class Hamster {
 
     private String name = "내 햄스터";
 
-    private int hunger = 70;    // 0~100
-    private int happiness = 70; // 0~100
-    private int energy = 70;    // 0~100
+    private int hunger = 80;    // 0~100
+    private int happiness = 80; // 0~100
+    private int energy = 80;    // 0~100
 
     private int poopTimer = 0;
     private boolean userAction = false; // true when action was user-initiated
     private int pendingCoins = 0;       // coins accumulated from ongoing actions
 
     // Meta-configurable values (set by Main from MetaProgress)
-    private int agingSpeed = 3;        // frames aged per update (default: 3x fast)
-    private int actionGain = 3;        // stat gain per action tick
-    private int drainMultiplier = 3;   // passive stat drain multiplier
+    private double agingSpeed = 2.0;   // frames aged per update (default: 2x fast)
+    private double ageAccumulator = 0; // fractional aging accumulator
+    private int actionGain = 5;        // stat gain per action tick
+    private double drainMultiplier = 1.0; // passive stat drain multiplier
+    private int drainInterval = 300;   // frames between stat drain ticks (~10 seconds)
+    private int coinBonus = 0;         // extra coins per action
+    private double poopChanceMultiplier = 1.0;  // poop probability multiplier
+    private double poopPenaltyMultiplier = 1.0; // poop happiness penalty multiplier
+    private double buffDurationMultiplier = 1.0; // buff duration multiplier
 
     private HamsterColor color;
     private long ageFrames = 0;
     private int lifespanFrames;
     private boolean dead = false;
+
+    // 2.0 fields
+    private Personality personality;
+    private FoodItem pendingFood = null;
+    private final List<Accessory> equippedAccessories = new ArrayList<>();
+    private final Set<String> ownedAccessories = new HashSet<>();
+    private int interactionCooldownFrames = 0;
 
     // Max stats (can be increased via legacy/upgrades)
     private int maxHunger = 100;
@@ -57,6 +69,8 @@ public class Hamster {
     private final List<Buff> buffs = new ArrayList<>();
     private int breedCooldownFrames = 0;
 
+    private boolean frozen = false;
+
     private final Random random = new Random();
     private final int screenWidth;
     private final int groundY;
@@ -71,6 +85,7 @@ public class Hamster {
         this.x = screenWidth / 2;
         this.y = groundY;
         this.color = color;
+        this.personality = Personality.random(random);
         // Random lifespan: 20~35 days
         this.lifespanFrames = (20 + random.nextInt(16)) * FRAMES_PER_DAY;
     }
@@ -81,13 +96,17 @@ public class Hamster {
         this.x = screenWidth / 2;
         this.y = groundY;
         this.color = color;
+        this.personality = Personality.random(random);
         this.lifespanFrames = lifespanFrames;
     }
 
     public void update() {
-        if (dead) return;
+        if (dead || frozen) return;
 
-        ageFrames += agingSpeed;
+        ageAccumulator += agingSpeed;
+        int ageGain = (int) ageAccumulator;
+        ageAccumulator -= ageGain;
+        ageFrames += ageGain;
         if (ageFrames >= lifespanFrames) {
             dead = true;
             return;
@@ -99,7 +118,12 @@ public class Hamster {
 
         // Tick breed cooldown
         if (breedCooldownFrames > 0) {
-            breedCooldownFrames = Math.max(0, breedCooldownFrames - agingSpeed);
+            breedCooldownFrames = Math.max(0, breedCooldownFrames - Math.max(1, (int) agingSpeed));
+        }
+
+        // Tick interaction cooldown
+        if (interactionCooldownFrames > 0) {
+            interactionCooldownFrames--;
         }
 
         // Tick buffs
@@ -109,54 +133,36 @@ public class Hamster {
             if (b.isExpired()) it.remove();
         }
 
-        // decrease stats over time (with buff multipliers + meta drain)
-        if (animFrame % 300 == 0) {
+        // decrease stats over time (with buff multipliers + meta drain + personality + TimeOfDay)
+        if (animFrame % drainInterval == 0) {
+            TimeOfDay tod = TimeOfDay.getCurrentPeriod();
+            double pHunger = personality != null ? personality.getHungerDrainMult() : 1.0;
+            double pHappiness = personality != null ? personality.getHappinessDrainMult() : 1.0;
             double hungerMult = getBuffMultiplier(Buff.Type.HUNGER_DRAIN);
-            hunger = Math.max(0, hunger - (int)(2 * drainMultiplier * hungerMult));
+            hunger = Math.max(0, hunger - Math.max(1, (int)(1 * drainMultiplier * hungerMult * pHunger * tod.getHungerDrainMult())));
             double happinessMult = getBuffMultiplier(Buff.Type.HAPPINESS_DRAIN);
-            happiness = Math.max(0, happiness - (int)(1 * drainMultiplier * happinessMult));
+            happiness = Math.max(0, happiness - Math.max(1, (int)(1 * drainMultiplier * happinessMult * pHappiness * tod.getHappinessDrainMult())));
         }
 
-        // User-initiated action ticks: every ~3 seconds, fill stats + award coins
-        if (userAction && animFrame % ACTION_TICK_FRAMES == 0) {
-            switch (state) {
-                case EATING:
-                    hunger = Math.min(maxHunger, hunger + actionGain);
-                    happiness = Math.min(maxHappiness, happiness + Math.max(1, actionGain / 3));
-                    pendingCoins += 2;
-                    if (hunger >= maxHunger) { state = State.IDLE; stateTimer = 60; userAction = false; }
-                    break;
-                case HAPPY:
-                    happiness = Math.min(maxHappiness, happiness + actionGain);
-                    energy = Math.max(0, energy - 3);
-                    pendingCoins += 3;
-                    if (happiness >= maxHappiness) { state = State.IDLE; stateTimer = 60; userAction = false; }
-                    break;
-                case RUNNING_WHEEL:
-                    happiness = Math.min(maxHappiness, happiness + actionGain);
-                    energy = Math.max(0, energy - 5);
-                    pendingCoins += 1;
-                    if (happiness >= maxHappiness || energy < 10) { state = State.IDLE; stateTimer = 60; userAction = false; }
-                    break;
-                case SLEEPING:
-                    energy = Math.min(maxEnergy, energy + actionGain);
-                    if (energy >= maxEnergy) { state = State.IDLE; stateTimer = 60; userAction = false; }
-                    break;
-            }
-        }
+        // User-initiated action: one-shot, transition to walking when timer expires
 
         // Natural (AI-chosen) sleeping: recover energy
-        if (!userAction && state == State.SLEEPING && animFrame % 120 == 0) {
-            energy = Math.min(maxEnergy, energy + 3);
-        } else if (state != State.SLEEPING && !userAction && animFrame % 200 == 0) {
+        if (!userAction && state == State.SLEEPING && animFrame % 200 == 0) {
+            TimeOfDay todSleep = TimeOfDay.getCurrentPeriod();
+            int baseRecover = (int)(3 * todSleep.getEnergyRecoveryMult());
+            double pSleep = personality != null ? personality.getSleepMult() : 1.0;
+            energy = Math.min(maxEnergy, energy + Math.max(1, (int)(baseRecover * pSleep)));
+        } else if (state != State.SLEEPING && !userAction && animFrame % 400 == 0) {
+            double pEnergy = personality != null ? personality.getEnergyDrainMult() : 1.0;
+            TimeOfDay todE = TimeOfDay.getCurrentPeriod();
             double energyMult = getBuffMultiplier(Buff.Type.ENERGY_DRAIN);
-            energy = Math.max(0, energy - (int)(1 * drainMultiplier * energyMult));
+            energy = Math.max(0, energy - Math.max(1, (int)(1 * drainMultiplier * energyMult * pEnergy * todE.getEnergyDrainMult())));
         }
 
         // Natural (AI-chosen) running wheel: drain energy, boost happiness
-        if (!userAction && state == State.RUNNING_WHEEL && animFrame % 100 == 0) {
+        if (!userAction && state == State.RUNNING_WHEEL && animFrame % 200 == 0) {
             double energyMult = getBuffMultiplier(Buff.Type.ENERGY_DRAIN);
-            energy = Math.max(0, energy - (int)(2 * drainMultiplier * energyMult));
+            energy = Math.max(0, energy - Math.max(1, (int)(1 * drainMultiplier * energyMult)));
             happiness = Math.min(maxHappiness, happiness + 2);
         }
         if (state == State.RUNNING_WHEEL && energy < 10) {
@@ -171,8 +177,55 @@ public class Hamster {
             return;
         }
 
-        if (stateTimer <= 0 && state != State.EATING && state != State.HAPPY) {
-            chooseNextState();
+        if (stateTimer <= 0) {
+            if (userAction) {
+                // Apply stat/coin rewards after action animation completes
+                double pCoin = personality != null ? personality.getCoinMult() : 1.0;
+                TimeOfDay todCoin = TimeOfDay.getCurrentPeriod();
+                int todBonus = todCoin.getCoinBonus();
+                switch (state) {
+                    case EATING:
+                        if (pendingFood != null) {
+                            double pFeed = personality != null ? personality.getFeedMult() : 1.0;
+                            hunger = Math.min(maxHunger, hunger + (int)(pendingFood.getHungerGain() * pFeed));
+                            happiness = Math.min(maxHappiness, happiness + pendingFood.getHappinessGain());
+                            energy = Math.min(maxEnergy, Math.max(0, energy + pendingFood.getEnergyGain()));
+                            pendingFood = null;
+                        } else {
+                            double pFeed = personality != null ? personality.getFeedMult() : 1.0;
+                            hunger = Math.min(maxHunger, hunger + (int)(actionGain * pFeed));
+                            happiness = Math.min(maxHappiness, happiness + Math.max(1, actionGain / 3));
+                        }
+                        pendingCoins += (int)((2 + coinBonus + todBonus) * pCoin);
+                        break;
+                    case HAPPY:
+                        double pPlay = personality != null ? personality.getPlayMult() : 1.0;
+                        happiness = Math.min(maxHappiness, happiness + (int)(actionGain * pPlay));
+                        energy = Math.max(0, energy - 3);
+                        pendingCoins += (int)((3 + coinBonus + todBonus) * pCoin);
+                        break;
+                    case RUNNING_WHEEL:
+                        happiness = Math.min(maxHappiness, happiness + actionGain);
+                        energy = Math.max(0, energy - 5);
+                        pendingCoins += (int)((1 + coinBonus + todBonus) * pCoin);
+                        break;
+                    case SLEEPING:
+                        double pSleep = personality != null ? personality.getSleepMult() : 1.0;
+                        energy = Math.min(maxEnergy, energy + (int)(actionGain * pSleep));
+                        break;
+                }
+                // Then start walking
+                userAction = false;
+                state = State.WALKING;
+                double angle = random.nextDouble() * Math.PI * 2;
+                double speed = 2.0;
+                moveX = Math.cos(angle) * speed;
+                moveY = Math.sin(angle) * speed;
+                direction = moveX >= 0 ? 1 : -1;
+                stateTimer = 100 + random.nextInt(200);
+            } else {
+                chooseNextState();
+            }
         }
 
         // movement is handled by HamsterWindow
@@ -181,6 +234,15 @@ public class Hamster {
     private void chooseNextState() {
         userAction = false;
         if (energy < 20) {
+            state = State.SLEEPING;
+            stateTimer = 300 + random.nextInt(200);
+            return;
+        }
+
+        // Night/late-night: increased sleep chance
+        TimeOfDay tod = TimeOfDay.getCurrentPeriod();
+        double sleepBonus = tod.getSleepChanceBonus();
+        if (sleepBonus > 0 && random.nextDouble() < sleepBonus && energy < 60) {
             state = State.SLEEPING;
             stateTimer = 300 + random.nextInt(200);
             return;
@@ -204,20 +266,30 @@ public class Hamster {
         }
     }
 
-    private static final int ACTION_TICK_FRAMES = 90; // ~3 seconds between each tick
+    private static final int USER_ACTION_ANIM_FRAMES = 90; // ~3 seconds animation
 
     public boolean feed() {
         if (dead) return false;
         state = State.EATING;
-        stateTimer = Integer.MAX_VALUE;
+        stateTimer = USER_ACTION_ANIM_FRAMES;
         userAction = true;
+        pendingFood = null;
+        return true;
+    }
+
+    public boolean feed(FoodItem food) {
+        if (dead) return false;
+        state = State.EATING;
+        stateTimer = USER_ACTION_ANIM_FRAMES;
+        userAction = true;
+        pendingFood = food;
         return true;
     }
 
     public boolean play() {
         if (dead) return false;
         state = State.HAPPY;
-        stateTimer = Integer.MAX_VALUE;
+        stateTimer = USER_ACTION_ANIM_FRAMES;
         userAction = true;
         return true;
     }
@@ -225,7 +297,7 @@ public class Hamster {
     public boolean runWheel() {
         if (dead) return false;
         state = State.RUNNING_WHEEL;
-        stateTimer = Integer.MAX_VALUE;
+        stateTimer = USER_ACTION_ANIM_FRAMES;
         userAction = true;
         return true;
     }
@@ -233,7 +305,7 @@ public class Hamster {
     public boolean sleep() {
         if (dead) return false;
         state = State.SLEEPING;
-        stateTimer = Integer.MAX_VALUE;
+        stateTimer = USER_ACTION_ANIM_FRAMES;
         userAction = true;
         return true;
     }
@@ -255,7 +327,7 @@ public class Hamster {
         if (dead) return false;
         if (poopTimer < 200) return false;
         // Higher hunger = more likely to poop (well-fed hamster poops more)
-        int chance = 2 + hunger / 20; // 2~7 per frame out of 1000
+        int chance = (int)((2 + hunger / 20) * poopChanceMultiplier); // 2~7 per frame out of 1000
         if (random.nextInt(1000) < chance) {
             poopTimer = 0;
             return true;
@@ -266,7 +338,7 @@ public class Hamster {
     public void applyPoopPenalty(int poopCount) {
         if (dead) return;
         if (poopCount > 0 && animFrame % 200 == 0) {
-            happiness = Math.max(0, happiness - poopCount);
+            happiness = Math.max(0, happiness - Math.max(1, (int)(poopCount * poopPenaltyMultiplier)));
         }
     }
 
@@ -296,6 +368,9 @@ public class Hamster {
     public int getAgeDays() { return (int)(ageFrames / FRAMES_PER_DAY); }
     public int getLifespanFrames() { return lifespanFrames; }
     public boolean isDead() { return dead; }
+    public void kill() { this.dead = true; }
+    public boolean isFrozen() { return frozen; }
+    public void setFrozen(boolean frozen) { this.frozen = frozen; }
     public void setHunger(int hunger) { this.hunger = Math.max(0, Math.min(maxHunger, hunger)); }
     public void setHappiness(int happiness) { this.happiness = Math.max(0, Math.min(maxHappiness, happiness)); }
     public void setEnergy(int energy) { this.energy = Math.max(0, Math.min(maxEnergy, energy)); }
@@ -307,9 +382,14 @@ public class Hamster {
     public void setMaxEnergy(int v) { this.maxEnergy = Math.min(MAX_STAT_CAP, v); }
     public void setPoopTimer(int poopTimer) { this.poopTimer = poopTimer; }
     public int getPoopTimer() { return poopTimer; }
-    public void setAgingSpeed(int v) { this.agingSpeed = v; }
+    public void setAgingSpeed(double v) { this.agingSpeed = v; }
     public void setActionGain(int v) { this.actionGain = v; }
-    public void setDrainMultiplier(int v) { this.drainMultiplier = v; }
+    public void setDrainMultiplier(double v) { this.drainMultiplier = v; }
+    public void setDrainInterval(int v) { this.drainInterval = v; }
+    public void setCoinBonus(int v) { this.coinBonus = v; }
+    public void setPoopChanceMultiplier(double v) { this.poopChanceMultiplier = v; }
+    public void setPoopPenaltyMultiplier(double v) { this.poopPenaltyMultiplier = v; }
+    public void setBuffDurationMultiplier(double v) { this.buffDurationMultiplier = v; }
 
     // Buff methods
     public double getBuffMultiplier(Buff.Type type) {
@@ -323,10 +403,18 @@ public class Hamster {
     }
 
     public double getCoinMultiplier() {
-        return getBuffMultiplier(Buff.Type.COIN_BONUS);
+        double mult = getBuffMultiplier(Buff.Type.COIN_BONUS);
+        for (Accessory acc : equippedAccessories) {
+            mult += acc.getCoinBonus();
+        }
+        return mult;
     }
 
     public void addBuff(Buff buff) {
+        if (buffDurationMultiplier != 1.0) {
+            buff = new Buff(buff.getType(), buff.getMultiplier(),
+                    (int)(buff.getRemainingFrames() * buffDurationMultiplier), buff.getDescription());
+        }
         buffs.add(buff);
     }
 
@@ -396,4 +484,33 @@ public class Hamster {
     public static int upgradeCost(int currentMax) {
         return currentMax - 50;
     }
+
+    // 2.0 getters/setters
+    public Personality getPersonality() { return personality; }
+    public void setPersonality(Personality p) { this.personality = p; }
+    public FoodItem getPendingFood() { return pendingFood; }
+    public void setPendingFood(FoodItem food) { this.pendingFood = food; }
+
+    public List<Accessory> getEquippedAccessories() { return equippedAccessories; }
+    public Set<String> getOwnedAccessories() { return ownedAccessories; }
+
+    public void equipAccessory(Accessory acc) {
+        // Remove existing in same slot
+        Iterator<Accessory> it = equippedAccessories.iterator();
+        while (it.hasNext()) {
+            if (it.next().getSlot() == acc.getSlot()) {
+                it.remove();
+            }
+        }
+        equippedAccessories.add(acc);
+    }
+
+    public void unequipAccessory(Accessory acc) {
+        equippedAccessories.remove(acc);
+    }
+
+    public int getInteractionCooldownFrames() { return interactionCooldownFrames; }
+    public void setInteractionCooldownFrames(int v) { this.interactionCooldownFrames = v; }
+    public boolean canInteract() { return !dead && interactionCooldownFrames <= 0; }
+    public void startInteractionCooldown() { this.interactionCooldownFrames = 2700; }
 }
