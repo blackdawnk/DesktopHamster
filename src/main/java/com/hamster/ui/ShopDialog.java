@@ -23,6 +23,12 @@ public class ShopDialog extends JDialog {
         public List<String> newAccessories = new ArrayList<>();
     }
 
+    public interface ShopCallback {
+        void onShopClosed(ShopResult result);
+    }
+
+    private static ShopDialog activeInstance = null;
+
     private ShopResult result = new ShopResult();
     private int currentMoney;
     private final FoodInventory foodInventory;
@@ -44,7 +50,7 @@ public class ShopDialog extends JDialog {
     private ShopDialog(int money, int hamsterCount, int maxSlots,
                        FoodInventory foodInventory, Set<String> globalOwnedAccessories,
                        int hamsterPurchaseCount) {
-        super((Frame) null, "\uC0C1\uC810", true);
+        super((Frame) null, "\uC0C1\uC810", false);
         this.currentMoney = money;
         this.foodInventory = foodInventory;
         this.globalOwnedAccessories = globalOwnedAccessories;
@@ -260,7 +266,11 @@ public class ShopDialog extends JDialog {
             grid.add(empty);
         }
 
-        panel.add(grid);
+        // Wrap grid to prevent GridLayout stretching (keep cells square)
+        JPanel gridWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        gridWrapper.setOpaque(false);
+        gridWrapper.add(grid);
+        panel.add(gridWrapper);
 
         JScrollPane scroll = new JScrollPane(panel);
         scroll.setPreferredSize(new Dimension(360, 300));
@@ -441,7 +451,11 @@ public class ShopDialog extends JDialog {
             grid.add(empty);
         }
 
-        parent.add(grid);
+        // Wrap grid to prevent stretching
+        JPanel gridWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        gridWrapper.setOpaque(false);
+        gridWrapper.add(grid);
+        parent.add(gridWrapper);
         parent.add(Box.createVerticalStrut(6));
     }
 
@@ -533,13 +547,25 @@ public class ShopDialog extends JDialog {
         return slot;
     }
 
-    public static ShopResult showAndBuy(int money, int hamsterCount, int maxSlots,
-                                        FoodInventory foodInventory,
-                                        Set<String> globalOwnedAccessories,
-                                        int hamsterPurchaseCount) {
+    public static void showAndBuy(int money, int hamsterCount, int maxSlots,
+                                   FoodInventory foodInventory,
+                                   Set<String> globalOwnedAccessories,
+                                   int hamsterPurchaseCount,
+                                   ShopCallback callback) {
+        if (activeInstance != null && activeInstance.isVisible()) {
+            activeInstance.toFront();
+            return;
+        }
         ShopDialog dialog = new ShopDialog(money, hamsterCount, maxSlots,
                 foodInventory, globalOwnedAccessories, hamsterPurchaseCount);
+        activeInstance = dialog;
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override
+            public void windowClosed(java.awt.event.WindowEvent e) {
+                activeInstance = null;
+                if (callback != null) callback.onShopClosed(dialog.result);
+            }
+        });
         dialog.setVisible(true);
-        return dialog.result;
     }
 }

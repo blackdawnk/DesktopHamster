@@ -10,16 +10,25 @@ import java.awt.event.*;
 public class SettingsDialog {
 
     private static final String FONT_NAME = "Noto Sans KR";
+    private static JDialog activeInstance = null;
 
     public interface OnSave {
         void onSettingsSaved(Settings settings);
     }
 
     public static void show(Component parent, Settings settings, GlobalHotkeyManager hotkeyManager, OnSave onSave) {
+        if (activeInstance != null && activeInstance.isVisible()) {
+            activeInstance.toFront();
+            return;
+        }
         // Suspend global hotkeys so they don't intercept key capture
         if (hotkeyManager != null) hotkeyManager.suspend();
 
-        JDialog dialog = new JDialog((Frame) null, "\uC124\uC815", true);
+        JDialog dialog = new JDialog((Frame) null, "\uC124\uC815", false);
+        activeInstance = dialog;
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosed(java.awt.event.WindowEvent e) { activeInstance = null; }
+        });
         dialog.setResizable(false);
         dialog.setIconImages(HamsterIcon.createIcons());
         dialog.setAlwaysOnTop(true);

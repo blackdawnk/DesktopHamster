@@ -7,8 +7,18 @@ import java.awt.*;
 
 public class StatisticsDialog {
 
+    private static JDialog activeInstance = null;
+
     public static void show(Component parent, GameStatistics stats) {
-        JDialog dialog = new JDialog((Frame) null, "\uD1B5\uACC4", true);
+        if (activeInstance != null && activeInstance.isVisible()) {
+            activeInstance.toFront();
+            return;
+        }
+        JDialog dialog = new JDialog((Frame) null, "\uD1B5\uACC4", false);
+        activeInstance = dialog;
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosed(java.awt.event.WindowEvent e) { activeInstance = null; }
+        });
         dialog.setResizable(false);
         dialog.setIconImages(HamsterIcon.createIcons());
 

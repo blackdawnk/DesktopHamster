@@ -10,8 +10,18 @@ import java.util.List;
 
 public class JournalDialog {
 
+    private static JDialog activeInstance = null;
+
     public static void show(Component parent, HamsterJournal journal) {
-        JDialog dialog = new JDialog((Frame) null, "\uB3C4\uAC10", true);
+        if (activeInstance != null && activeInstance.isVisible()) {
+            activeInstance.toFront();
+            return;
+        }
+        JDialog dialog = new JDialog((Frame) null, "\uB3C4\uAC10", false);
+        activeInstance = dialog;
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosed(java.awt.event.WindowEvent e) { activeInstance = null; }
+        });
         dialog.setResizable(false);
         dialog.setIconImages(HamsterIcon.createIcons());
 

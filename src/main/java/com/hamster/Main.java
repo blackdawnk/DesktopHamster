@@ -77,6 +77,11 @@ public class Main {
     private int hamsterPurchaseCount = 0;
     private HamsterManager hamsterManager;
 
+    // Dialog instance tracking (prevent duplicate opens)
+    private JDialog activeUpgradeDialog = null;
+    private JDialog activeFeedPopup = null;
+    private JDialog activeEquipPopup = null;
+
     private final HamsterWindow.ContextMenuCallback contextMenuCallback = new HamsterWindow.ContextMenuCallback() {
         @Override public void onFeed(Hamster h) { onFeedWithFood(h); }
         @Override public void onPlay(Hamster h) { h.play(); statistics.totalPlayActions++; achievementManager.totalPlays++; }
@@ -706,7 +711,15 @@ public class Main {
     }
 
     private void showUpgradeInfoDialog() {
-        JDialog dialog = new JDialog((Frame) null, "\uC5C5\uADF8\uB808\uC774\uB4DC \uC815\uBCF4", true);
+        if (activeUpgradeDialog != null && activeUpgradeDialog.isVisible()) {
+            activeUpgradeDialog.toFront();
+            return;
+        }
+        JDialog dialog = new JDialog((Frame) null, "\uC5C5\uADF8\uB808\uC774\uB4DC \uC815\uBCF4", false);
+        activeUpgradeDialog = dialog;
+        dialog.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosed(java.awt.event.WindowEvent e) { activeUpgradeDialog = null; }
+        });
         dialog.setResizable(false);
         dialog.setIconImages(HamsterIcon.createIcons());
 
@@ -820,59 +833,61 @@ public class Main {
 
     private void openShop() {
         int maxSlots = metaProgress.getMaxHamsterSlots();
-        ShopDialog.ShopResult shopResult = ShopDialog.showAndBuy(money, hamsters.size(), maxSlots,
-                foodInventory, achievementManager.accessoriesBought, hamsterPurchaseCount);
+        ShopDialog.showAndBuy(money, hamsters.size(), maxSlots,
+                foodInventory, achievementManager.accessoriesBought, hamsterPurchaseCount,
+                new ShopDialog.ShopCallback() {
+                    @Override
+                    public void onShopClosed(ShopDialog.ShopResult shopResult) {
+                        // Deduct money spent on food/accessories
+                        if (shopResult.totalSpent > 0) {
+                            spendMoney(shopResult.totalSpent);
+                        }
 
-        // Deduct money spent on food/accessories
-        if (shopResult.totalSpent > 0) {
-            spendMoney(shopResult.totalSpent);
-        }
+                        // Track new accessories globally
+                        for (String accName : shopResult.newAccessories) {
+                            achievementManager.accessoriesBought.add(accName);
+                            for (Hamster h : hamsters) {
+                                h.getOwnedAccessories().add(accName);
+                            }
+                        }
 
-        // Track new accessories globally
-        for (String accName : shopResult.newAccessories) {
-            achievementManager.accessoriesBought.add(accName);
-            // Equip to all current hamsters' owned set
-            for (Hamster h : hamsters) {
-                h.getOwnedAccessories().add(accName);
-            }
-        }
+                        // Handle hamster purchase
+                        if (shopResult.boughtHamster) {
+                            hamsterPurchaseCount++;
+                            hamstersRaised++;
+                            statistics.totalHamstersRaised++;
 
-        // Handle hamster purchase
-        if (shopResult.boughtHamster) {
-            hamsterPurchaseCount++;
-            hamstersRaised++;
-            statistics.totalHamstersRaised++;
+                            HamsterColor[] colors = HamsterColor.values();
+                            HamsterColor purchased = colors[random.nextInt(colors.length)];
+                            achievementManager.colorsSeen.add(purchased.name());
 
-            // Random color
-            HamsterColor[] colors = HamsterColor.values();
-            HamsterColor purchased = colors[random.nextInt(colors.length)];
-            achievementManager.colorsSeen.add(purchased.name());
+                            String name = JOptionPane.showInputDialog(controlPanel,
+                                    purchased.getDisplayName() + " \uD584\uC2A4\uD130\uAC00 \uD0DC\uC5B4\uB0AC\uC2B5\uB2C8\uB2E4!\n\uC774\uB984\uC744 \uC785\uB825\uD558\uC138\uC694:",
+                                    "\uC0C8 \uD584\uC2A4\uD130");
+                            if (name == null || name.trim().isEmpty()) {
+                                name = purchased.getDisplayName() + " \uD584\uC2A4\uD130";
+                            }
 
-            String name = JOptionPane.showInputDialog(controlPanel,
-                    purchased.getDisplayName() + " \uD584\uC2A4\uD130\uAC00 \uD0DC\uC5B4\uB0AC\uC2B5\uB2C8\uB2E4!\n\uC774\uB984\uC744 \uC785\uB825\uD558\uC138\uC694:",
-                    "\uC0C8 \uD584\uC2A4\uD130");
-            if (name == null || name.trim().isEmpty()) {
-                name = purchased.getDisplayName() + " \uD584\uC2A4\uD130";
-            }
+                            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
+                            int groundY = hamsterManager.getGroundY(screenSize);
 
-            Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-            int groundY = hamsterManager.getGroundY(screenSize);
+                            Hamster h = hamsterManager.createHamster(screenSize.width, purchased, name.trim());
+                            hamsterManager.registerWithAchievements(h, achievementManager);
+                            hamsters.add(h);
 
-            Hamster h = hamsterManager.createHamster(screenSize.width, purchased, name.trim());
-            hamsterManager.registerWithAchievements(h, achievementManager);
-            hamsters.add(h);
+                            int offsetX = (hamsters.size() - 1) * 80;
+                            HamsterWindow w = new HamsterWindow(h);
+                            w.setContextMenuCallback(contextMenuCallback);
+                            w.setLocation(screenSize.width / 2 - 40 + offsetX, groundY);
+                            hamsterWindows.add(w);
+                            applySentBackState(w);
 
-            int offsetX = (hamsters.size() - 1) * 80;
-            HamsterWindow w = new HamsterWindow(h);
-            w.setContextMenuCallback(contextMenuCallback);
-            w.setLocation(screenSize.width / 2 - 40 + offsetX, groundY);
-            hamsterWindows.add(w);
-            applySentBackState(w);
+                            controlPanel.rebuild(hamsters);
+                        }
 
-            controlPanel.rebuild(hamsters);
-        }
-
-        autoSave();
+                        autoSave();
+                    }
+                });
     }
 
     private void killSingleHamster(Hamster target) {
@@ -1096,7 +1111,15 @@ public class Main {
         ttm.setDismissDelay(30000);
 
         // Create inventory-style popup dialog
-        final JDialog popup = new JDialog(controlPanel, h.getName() + " \uBC25\uC8FC\uAE30", true);
+        if (activeFeedPopup != null && activeFeedPopup.isVisible()) {
+            activeFeedPopup.toFront();
+            return;
+        }
+        final JDialog popup = new JDialog(controlPanel, h.getName() + " \uBC25\uC8FC\uAE30", false);
+        activeFeedPopup = popup;
+        popup.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosed(java.awt.event.WindowEvent e) { activeFeedPopup = null; }
+        });
         popup.setUndecorated(true);
         popup.setAlwaysOnTop(true);
 
@@ -1186,7 +1209,11 @@ public class Main {
             grid.add(slot);
         }
 
-        outer.add(grid, BorderLayout.CENTER);
+        // Wrap grid to keep cells square
+        JPanel gridWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        gridWrapper.setOpaque(false);
+        gridWrapper.add(grid);
+        outer.add(gridWrapper, BorderLayout.CENTER);
 
         // Close hint
         JLabel hint = new JLabel("ESC: \uB2EB\uAE30", SwingConstants.CENTER);
@@ -1237,7 +1264,15 @@ public class Main {
         ttm.setInitialDelay(200);
         ttm.setDismissDelay(30000);
 
-        final JDialog popup = new JDialog(controlPanel, h.getName() + " \uCE58\uC7A5", true);
+        if (activeEquipPopup != null && activeEquipPopup.isVisible()) {
+            activeEquipPopup.toFront();
+            return;
+        }
+        final JDialog popup = new JDialog(controlPanel, h.getName() + " \uCE58\uC7A5", false);
+        activeEquipPopup = popup;
+        popup.addWindowListener(new java.awt.event.WindowAdapter() {
+            @Override public void windowClosed(java.awt.event.WindowEvent e) { activeEquipPopup = null; }
+        });
         popup.setUndecorated(true);
         popup.setAlwaysOnTop(true);
 
@@ -1371,7 +1406,11 @@ public class Main {
             grid.add(empty);
         }
 
-        outer.add(grid, BorderLayout.CENTER);
+        // Wrap grid to keep cells square
+        JPanel gridWrapper = new JPanel(new FlowLayout(FlowLayout.CENTER, 0, 0));
+        gridWrapper.setOpaque(false);
+        gridWrapper.add(grid);
+        outer.add(gridWrapper, BorderLayout.CENTER);
 
         // Close hint
         JLabel hint = new JLabel("ESC: \uB2EB\uAE30", SwingConstants.CENTER);
