@@ -499,6 +499,9 @@ public class Main {
         });
         poopWindows.add(holder[0]);
         applySentBackState(holder[0]);
+        if (hidden) {
+            holder[0].setVisible(false);
+        }
     }
 
     private void checkDeaths() {
@@ -989,24 +992,23 @@ public class Main {
 
     private void gatherAllHamsters() {
         if (hamsterWindows.isEmpty()) return;
-        Point cpLoc = controlPanel.getLocation();
-        int cpWidth = controlPanel.getWidth();
-        int startX = cpLoc.x + cpWidth + 10;
-        int startY = cpLoc.y;
-
-        // Check if there's enough room to the right, otherwise go left
         Dimension screenSize = Toolkit.getDefaultToolkit().getScreenSize();
-        int neededWidth = ((Math.min(hamsterWindows.size(), 3)) * 85);
-        if (startX + neededWidth > screenSize.width) {
-            startX = cpLoc.x - neededWidth - 10;
-            if (startX < 0) startX = 0;
-        }
+        Insets screenInsets = Toolkit.getDefaultToolkit().getScreenInsets(
+                GraphicsEnvironment.getLocalGraphicsEnvironment()
+                        .getDefaultScreenDevice().getDefaultConfiguration());
+
+        // Position above the system tray (bottom-right corner, above taskbar)
+        int taskbarHeight = screenInsets.bottom;
+        int baseX = screenSize.width;
+        int baseY = screenSize.height - taskbarHeight;
 
         for (int i = 0; i < hamsterWindows.size(); i++) {
             HamsterWindow w = hamsterWindows.get(i);
             int col = i % 3;
             int row = i / 3;
-            w.setLocation(startX + col * 85, startY + row * 105);
+            int x = baseX - (col + 1) * 85;
+            int y = baseY - (row + 1) * 105;
+            w.setLocation(x, y);
         }
     }
 

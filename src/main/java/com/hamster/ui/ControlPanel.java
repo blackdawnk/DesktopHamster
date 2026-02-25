@@ -294,16 +294,17 @@ public class ControlPanel extends JFrame {
         opacitySlider.setPreferredSize(new Dimension(180, 22));
         opacitySlider.setOpaque(false);
 
-        // Click-to-jump: clicking the track moves to that position directly
+        // Click-to-jump: clicking the track jumps to that position directly
         opacitySlider.addMouseListener(new MouseAdapter() {
             @Override
             public void mousePressed(MouseEvent e) {
+                stopSliderAnimation();
                 int trackWidth = opacitySlider.getWidth();
                 int min = opacitySlider.getMinimum();
                 int max = opacitySlider.getMaximum();
                 int target = min + (int) ((double) e.getX() / trackWidth * (max - min));
                 target = Math.max(min, Math.min(max, target));
-                animateSlider(opacitySlider, target);
+                opacitySlider.setValue(target);
             }
         });
 
@@ -572,19 +573,13 @@ public class ControlPanel extends JFrame {
         return p;
     }
 
-    private void animateSlider(JSlider slider, int target) {
-        Timer timer = new Timer(15, null);
-        timer.addActionListener(e -> {
-            int current = slider.getValue();
-            if (current == target) {
-                timer.stop();
-                return;
-            }
-            int diff = target - current;
-            int step = (int) Math.signum(diff) * Math.max(1, Math.abs(diff) / 4);
-            slider.setValue(current + step);
-        });
-        timer.start();
+    private Timer sliderAnimTimer = null;
+
+    private void stopSliderAnimation() {
+        if (sliderAnimTimer != null) {
+            sliderAnimTimer.stop();
+            sliderAnimTimer = null;
+        }
     }
 
     private JButton createSmallButton(String text, Color color, ActionListener action) {
