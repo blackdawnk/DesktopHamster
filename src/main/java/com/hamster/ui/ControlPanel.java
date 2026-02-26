@@ -14,7 +14,7 @@ import java.util.List;
 public class ControlPanel extends JFrame {
 
     private static final String FONT_NAME = "Noto Sans KR";
-    public static final String VERSION = "2.1.3";
+    public static final String VERSION = "2.1.7";
 
     /** Wraps emoji characters in HTML with Segoe UI Emoji font for proper rendering. */
     public static String wrapEmoji(String text) {
@@ -247,6 +247,10 @@ public class ControlPanel extends JFrame {
         JButton statsBtn = createButton("\uD1B5\uACC4", new Color(230, 255, 230), e -> callbacks.onShowStatistics());
         statsBtn.setToolTipText("\uD1B5\uACC4 \uBCF4\uAE30");
         newBtns.add(statsBtn);
+
+        JButton journalBtn = createButton("\uB3C4\uAC10", new Color(220, 240, 255), e -> callbacks.onShowJournal());
+        journalBtn.setToolTipText("\uD584\uC2A4\uD130 \uB3C4\uAC10 \uBCF4\uAE30");
+        newBtns.add(journalBtn);
 
         mainPanel.add(newBtns);
 
@@ -536,7 +540,19 @@ public class ControlPanel extends JFrame {
             bar.setBackground(new Color(240, 240, 240));
             bar.setPreferredSize(new Dimension(220, 18));
             bar.setMaximumSize(new Dimension(320, 18));
-            bar.setFont(new Font(FONT_NAME, Font.PLAIN, 10));
+            bar.setFont(new Font(FONT_NAME, Font.BOLD, 10));
+            // Custom UI to draw dark text on bright bar
+            bar.setUI(new javax.swing.plaf.basic.BasicProgressBarUI() {
+                @Override
+                protected Color getSelectionForeground() {
+                    return new Color(50, 30, 10); // text on filled area
+                }
+                @Override
+                protected Color getSelectionBackground() {
+                    return new Color(80, 60, 40); // text on empty area
+                }
+            });
+            bar.setForeground(color);
             return bar;
         }
     }

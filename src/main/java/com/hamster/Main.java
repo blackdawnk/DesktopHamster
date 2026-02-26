@@ -61,10 +61,12 @@ public class Main {
     private int eventTimer = 0;
     private int[] pendingLegacy = null; // stored when last hamster dies
     private boolean allFrozen = false;
+    private boolean pendingGameOver = false;
 
     private MetaProgress metaProgress;
     private Settings settings;
     private int hamstersRaised = 1;
+    private int qualifiedHamsters = 0; // hamsters that lived >= 1 day (for seed calc)
     private Timer gameTimer;
     private boolean systemSetupDone = false;
 
@@ -192,6 +194,7 @@ public class Main {
         money = state.money;
         totalFrames = state.totalFrames;
         hamstersRaised = state.hamstersRaised;
+        qualifiedHamsters = state.qualifiedHamsters;
         foodInventory = state.foodInventory != null ? state.foodInventory : new FoodInventory();
         hamsterPurchaseCount = state.hamsterPurchaseCount;
         pendingLegacy = null; // discard pending legacy when loading a save
@@ -530,6 +533,9 @@ public class Main {
                 statistics.totalDeaths++;
 
                 int lifeDays = h.getAgeDays();
+                if (lifeDays >= 1) {
+                    qualifiedHamsters++;
+                }
                 if (lifeDays > statistics.longestLifespanDays) {
                     statistics.longestLifespanDays = lifeDays;
                 }
@@ -557,7 +563,11 @@ public class Main {
         if (anyDied) {
             controlPanel.rebuild(hamsters);
             if (hamsters.isEmpty()) {
-                gameOver();
+                if (hidden) {
+                    pendingGameOver = true;
+                } else {
+                    gameOver();
+                }
             }
         }
     }
@@ -565,11 +575,12 @@ public class Main {
     private void gameOver() {
         gameTimer.stop();
 
-        int seeds = MetaProgress.calculateSeeds(hamstersRaised, money);
+        int seeds = MetaProgress.calculateSeeds(qualifiedHamsters, money);
         metaProgress.addSeeds(seeds);
 
         String msg = "\uAC8C\uC784 \uC624\uBC84!\n\n" +
                 "\uD0A4\uC6B4 \uD584\uC2A4\uD130: " + hamstersRaised + "\uB9C8\uB9AC\n" +
+                "\uBCF4\uC0C1 \uB300\uC0C1: " + qualifiedHamsters + "\uB9C8\uB9AC (1\uC77C \uC774\uC0C1 \uC0DD\uC874)\n" +
                 "\uB0A8\uC740 \uCF54\uC778: " + money + "\n\n" +
                 "\uD68D\uB4DD \uD574\uBC14\uB77C\uAE30\uC528: " + seeds + "\uAC1C\n" +
                 "\uCD1D \uD574\uBC14\uB77C\uAE30\uC528: " + metaProgress.sunflowerSeeds + "\uAC1C";
@@ -591,6 +602,7 @@ public class Main {
         money = 0;
         totalFrames = 0;
         hamstersRaised = 1;
+        qualifiedHamsters = 0;
         hamsterPurchaseCount = 0;
         eventTimer = 0;
 
@@ -717,7 +729,7 @@ public class Main {
     // applyMetaValues and applyStartingStats are now in HamsterManager
 
     private void autoSave() {
-        GameState state = GameState.capture(money, totalFrames, hamsters, hamsterWindows, poopWindows, hamstersRaised, foodInventory, hamsterPurchaseCount);
+        GameState state = GameState.capture(money, totalFrames, hamsters, hamsterWindows, poopWindows, hamstersRaised, qualifiedHamsters, foodInventory, hamsterPurchaseCount);
         SaveManager.saveAuto(state);
         statistics.save();
         achievementManager.save();
@@ -975,6 +987,10 @@ public class Main {
             for (HamsterWindow w : hamsterWindows) w.setVisible(true);
             for (PoopWindow pw : poopWindows) pw.setVisible(true);
             controlPanel.setVisible(true);
+            if (pendingGameOver) {
+                pendingGameOver = false;
+                gameOver();
+            }
         }
     }
 
@@ -1017,16 +1033,12 @@ public class Main {
         int baseX = screenSize.width;
         int baseY = screenSize.height - taskbarHeight;
 
-        for (int i = 0; i < hamsterWindows.size(); i++) {
-            HamsterWindow w = hamsterWindows.get(i);
-            int wWidth = w.getWidth();
-            int wHeight = w.getHeight();
-            int col = i % 3;
-            int row = i / 3;
-            int x = baseX - wWidth - col * 85;
-            int y = baseY - wHeight - row * 105;
-            if (x < 0) x = 0;
-            if (y < 0) y = 0;
+        HamsterWindow first = hamsterWindows.get(0);
+        int x = baseX - first.getWidth();
+        int y = baseY - first.getHeight();
+        if (x < 0) x = 0;
+        if (y < 0) y = 0;
+        for (HamsterWindow w : hamsterWindows) {
             w.setLocation(x, y);
         }
     }

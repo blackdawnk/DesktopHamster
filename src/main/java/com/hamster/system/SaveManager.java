@@ -53,6 +53,7 @@ public class SaveManager {
         props.setProperty("money", String.valueOf(state.money));
         props.setProperty("totalFrames", String.valueOf(state.totalFrames));
         props.setProperty("hamstersRaised", String.valueOf(state.hamstersRaised));
+        props.setProperty("qualifiedHamsters", String.valueOf(state.qualifiedHamsters));
         props.setProperty("hamsterPurchaseCount", String.valueOf(state.hamsterPurchaseCount));
 
         props.setProperty("hamsterCount", String.valueOf(state.hamsters.size()));
@@ -244,6 +245,7 @@ public class SaveManager {
         state.money = Integer.parseInt(props.getProperty("money", "0"));
         state.totalFrames = Long.parseLong(props.getProperty("totalFrames", "0"));
         state.hamstersRaised = Integer.parseInt(props.getProperty("hamstersRaised", "1"));
+        state.qualifiedHamsters = Integer.parseInt(props.getProperty("qualifiedHamsters", "0"));
         state.hamsterPurchaseCount = Integer.parseInt(props.getProperty("hamsterPurchaseCount", "0"));
 
         int hamsterCount = Integer.parseInt(props.getProperty("hamsterCount", "0"));

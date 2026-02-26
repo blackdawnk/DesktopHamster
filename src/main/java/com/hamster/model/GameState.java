@@ -9,6 +9,7 @@ public class GameState {
     public int money;
     public long totalFrames;
     public int hamstersRaised;
+    public int qualifiedHamsters;
     public int hamsterPurchaseCount;
     public List<HamsterData> hamsters;
     public List<PoopData> poops;
@@ -48,13 +49,14 @@ public class GameState {
     public static GameState capture(int money, long totalFrames,
                                     List<Hamster> hamsters, List<HamsterWindow> windows,
                                     List<PoopWindow> poopWindows,
-                                    int hamstersRaised,
+                                    int hamstersRaised, int qualifiedHamsters,
                                     FoodInventory foodInventory,
                                     int hamsterPurchaseCount) {
         GameState state = new GameState();
         state.money = money;
         state.totalFrames = totalFrames;
         state.hamstersRaised = hamstersRaised;
+        state.qualifiedHamsters = qualifiedHamsters;
         state.hamsterPurchaseCount = hamsterPurchaseCount;
         state.foodInventory = foodInventory;
 
