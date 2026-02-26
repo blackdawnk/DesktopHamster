@@ -42,7 +42,6 @@ public class PoopWindow extends JWindow {
         panel.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
 
         add(panel);
-        setVisible(true);
     }
 
     private void drawPoop(Graphics2D g2) {

@@ -48,6 +48,10 @@ public class GlobalHotkeyManager {
 
     public void start(Settings settings) {
         if (running) return;
+        if (!System.getProperty("os.name", "").toLowerCase().contains("win")) {
+            GameLogger.info("GlobalHotkeyManager disabled: not running on Windows");
+            return;
+        }
         running = true;
 
         toggleMod = settings.toggleModifier;

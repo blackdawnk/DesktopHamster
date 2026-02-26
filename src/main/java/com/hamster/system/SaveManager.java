@@ -160,23 +160,28 @@ public class SaveManager {
         } catch (IOException e) {
             return null;
         }
-        int count = Integer.parseInt(props.getProperty("hamsterCount", "0"));
-        int money = Integer.parseInt(props.getProperty("money", "0"));
-        if (count == 0) return null;
-        StringBuilder sb = new StringBuilder();
-        for (int i = 0; i < count; i++) {
-            String prefix = "hamster." + i + ".";
-            String name = props.getProperty(prefix + "name", "\uD584\uC2A4\uD130");
-            int gen = Integer.parseInt(props.getProperty(prefix + "generation", "1"));
-            long ageFrames = Long.parseLong(props.getProperty(prefix + "ageFrames", "0"));
-            int ageDays = (int)(ageFrames / GameConstants.FRAMES_PER_DAY);
-            if (i > 0) sb.append(", ");
-            sb.append(name).append("(").append(ageDays).append("\uC77C");
-            if (gen > 1) sb.append(", ").append(gen).append("\uC138\uB300");
-            sb.append(")");
+        try {
+            int count = Integer.parseInt(props.getProperty("hamsterCount", "0"));
+            int money = Integer.parseInt(props.getProperty("money", "0"));
+            if (count == 0) return null;
+            StringBuilder sb = new StringBuilder();
+            for (int i = 0; i < count; i++) {
+                String prefix = "hamster." + i + ".";
+                String name = props.getProperty(prefix + "name", "\uD584\uC2A4\uD130");
+                int gen = Integer.parseInt(props.getProperty(prefix + "generation", "1"));
+                long ageFrames = Long.parseLong(props.getProperty(prefix + "ageFrames", "0"));
+                int ageDays = (int)(ageFrames / GameConstants.FRAMES_PER_DAY);
+                if (i > 0) sb.append(", ");
+                sb.append(name).append("(").append(ageDays).append("\uC77C");
+                if (gen > 1) sb.append(", ").append(gen).append("\uC138\uB300");
+                sb.append(")");
+            }
+            sb.append(" | ").append(money).append("\uCF54\uC778");
+            return sb.toString();
+        } catch (NumberFormatException e) {
+            GameLogger.error("Corrupted auto-save file", e);
+            return null;
         }
-        sb.append(" | ").append(money).append("\uCF54\uC778");
-        return sb.toString();
     }
 
     private static String joinList(java.util.List<String> list) {

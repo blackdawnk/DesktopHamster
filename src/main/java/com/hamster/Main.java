@@ -260,6 +260,7 @@ public class Main {
             });
             poopWindows.add(holder[0]);
             applySentBackState(holder[0]);
+            holder[0].setVisible(true);
         }
 
         startGameLoop();
@@ -436,18 +437,18 @@ public class Main {
         // Check deaths
         checkDeaths();
 
-        // Random event check
+        // Random event check (skip when hidden)
         eventTimer++;
-        if (eventTimer >= metaProgress.getEventInterval() && !hamsters.isEmpty()) {
+        if (!hidden && eventTimer >= metaProgress.getEventInterval() && !hamsters.isEmpty()) {
             eventTimer = 0;
             triggerRandomEvent();
             statistics.totalEventsTriggered++;
             achievementManager.totalEventsTriggered++;
         }
 
-        // Hamster interactions
+        // Hamster interactions (skip when hidden)
         interactionTimer++;
-        if (interactionTimer >= GameConstants.INTERACTION_CHECK_INTERVAL && hamsterWindows.size() >= 2) {
+        if (!hidden && interactionTimer >= GameConstants.INTERACTION_CHECK_INTERVAL && hamsterWindows.size() >= 2) {
             interactionTimer = 0;
             tryInteraction();
         }
@@ -461,9 +462,9 @@ public class Main {
             }
         }
 
-        // Achievement check
+        // Achievement check (skip when hidden)
         achievementCheckTimer++;
-        if (achievementCheckTimer >= GameConstants.ACHIEVEMENT_CHECK_INTERVAL) {
+        if (!hidden && achievementCheckTimer >= GameConstants.ACHIEVEMENT_CHECK_INTERVAL) {
             achievementCheckTimer = 0;
             checkAchievements();
         }
@@ -499,8 +500,8 @@ public class Main {
         });
         poopWindows.add(holder[0]);
         applySentBackState(holder[0]);
-        if (hidden) {
-            holder[0].setVisible(false);
+        if (!hidden) {
+            holder[0].setVisible(true);
         }
     }
 
@@ -512,7 +513,14 @@ public class Main {
                 String name = h.getName();
                 int gen = h.getGeneration();
                 int[] legacy = h.computeLegacy();
-                pendingLegacy = legacy;
+                if (pendingLegacy == null) {
+                    pendingLegacy = legacy;
+                } else {
+                    // Keep the best legacy values from multiple deaths
+                    for (int j = 0; j < legacy.length; j++) {
+                        pendingLegacy[j] = Math.max(pendingLegacy[j], legacy[j]);
+                    }
+                }
                 savePendingLegacy();
 
                 // Determine cause of death
@@ -539,8 +547,10 @@ public class Main {
                     deathMsg += "\n\uB808\uAC70\uC2DC \uD68D\uB4DD! \uBC30\uACE0\uD514+5, \uD589\uBCF5+5, \uCCB4\uB825+5, \uC218\uBA85+1\uC77C, \uCD5C\uB300\uC2A4\uD0EF+5";
                 }
 
-                JOptionPane.showMessageDialog(controlPanel, deathMsg,
-                        "\uC548\uB155\uD788...", JOptionPane.INFORMATION_MESSAGE);
+                if (!hidden) {
+                    JOptionPane.showMessageDialog(controlPanel, deathMsg,
+                            "\uC548\uB155\uD788...", JOptionPane.INFORMATION_MESSAGE);
+                }
             }
         }
         if (anyDied) {
@@ -911,6 +921,8 @@ public class Main {
             actual = amount;
         }
         money += actual;
+        if (money < 0) money = 0;
+        if (money > 999_999_999) money = 999_999_999;
         if (actual > 0) {
             statistics.totalCoinsEarned += actual;
         }
@@ -918,6 +930,7 @@ public class Main {
 
     public void spendMoney(int amount) {
         money -= amount;
+        if (money < 0) money = 0;
         statistics.totalCoinsSpent += amount;
     }
 
@@ -1008,6 +1021,8 @@ public class Main {
             int row = i / 3;
             int x = baseX - (col + 1) * 85;
             int y = baseY - (row + 1) * 105;
+            if (x < 0) x = 0;
+            if (y < 0) y = 0;
             w.setLocation(x, y);
         }
     }

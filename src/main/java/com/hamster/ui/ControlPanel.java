@@ -594,7 +594,7 @@ public class ControlPanel extends JFrame {
                 BorderFactory.createEmptyBorder(3, 8, 3, 8)
         ));
         btn.setCursor(Cursor.getPredefinedCursor(Cursor.HAND_CURSOR));
-        btn.addActionListener(action);
+        if (action != null) btn.addActionListener(action);
         return btn;
     }
 

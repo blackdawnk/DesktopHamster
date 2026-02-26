@@ -60,7 +60,7 @@ public class Settings {
         try (FileInputStream fis = new FileInputStream(file)) {
             props.load(fis);
         } catch (IOException e) {
-            e.printStackTrace();
+            GameLogger.error("Failed to load settings", e);
             return s;
         }
 
