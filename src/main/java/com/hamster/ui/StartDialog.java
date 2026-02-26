@@ -202,6 +202,7 @@ public class StartDialog extends JDialog {
         JDialog shopDialog = new JDialog(this, "\uC5C5\uADF8\uB808\uC774\uB4DC", true);
         shopDialog.setResizable(false);
         shopDialog.setIconImages(HamsterIcon.createIcons());
+        UIHelper.addEscapeClose(shopDialog);
 
         JPanel outerPanel = new JPanel();
         outerPanel.setLayout(new BoxLayout(outerPanel, BoxLayout.Y_AXIS));

@@ -100,6 +100,15 @@ public final class UIHelper {
         return bar;
     }
 
+    /** Bind ESC key to close/dispose a JDialog. */
+    public static void addEscapeClose(JDialog dialog) {
+        dialog.getRootPane().registerKeyboardAction(
+                e -> dialog.dispose(),
+                KeyStroke.getKeyStroke(java.awt.event.KeyEvent.VK_ESCAPE, 0),
+                JComponent.WHEN_IN_FOCUSED_WINDOW
+        );
+    }
+
     /** Get slot display name in Korean. */
     public static String getSlotDisplayName(com.hamster.model.Accessory.Slot slot) {
         switch (slot) {

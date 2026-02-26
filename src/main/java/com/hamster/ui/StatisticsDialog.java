@@ -14,13 +14,16 @@ public class StatisticsDialog {
             activeInstance.toFront();
             return;
         }
-        JDialog dialog = new JDialog((Frame) null, "\uD1B5\uACC4", false);
+        Window owner = (parent instanceof Window) ? (Window) parent :
+                (parent != null ? SwingUtilities.getWindowAncestor(parent) : null);
+        JDialog dialog = new JDialog(owner, "\uD1B5\uACC4", Dialog.ModalityType.MODELESS);
         activeInstance = dialog;
         dialog.addWindowListener(new java.awt.event.WindowAdapter() {
             @Override public void windowClosed(java.awt.event.WindowEvent e) { activeInstance = null; }
         });
         dialog.setResizable(false);
         dialog.setIconImages(HamsterIcon.createIcons());
+        UIHelper.addEscapeClose(dialog);
 
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));

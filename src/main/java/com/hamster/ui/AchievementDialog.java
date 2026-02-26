@@ -22,6 +22,7 @@ public class AchievementDialog {
         });
         dialog.setResizable(false);
         dialog.setIconImages(HamsterIcon.createIcons());
+        UIHelper.addEscapeClose(dialog);
 
         JPanel outerPanel = new JPanel();
         outerPanel.setLayout(new BoxLayout(outerPanel, BoxLayout.Y_AXIS));

@@ -18,6 +18,7 @@ public class EventDialog {
         JDialog dialog = new JDialog((Frame) null, event.getTitle(), true);
         dialog.setUndecorated(true);
         dialog.setAlwaysOnTop(true);
+        UIHelper.addEscapeClose(dialog);
 
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));

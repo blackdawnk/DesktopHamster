@@ -33,6 +33,7 @@ import com.hamster.ui.SettingsDialog;
 import com.hamster.ui.ShopDialog;
 import com.hamster.ui.StartDialog;
 import com.hamster.ui.StatisticsDialog;
+import com.hamster.ui.UIHelper;
 
 import javax.swing.*;
 import java.awt.*;
@@ -735,6 +736,7 @@ public class Main {
         });
         dialog.setResizable(false);
         dialog.setIconImages(HamsterIcon.createIcons());
+        UIHelper.addEscapeClose(dialog);
 
         JPanel panel = new JPanel();
         panel.setLayout(new BoxLayout(panel, BoxLayout.Y_AXIS));
@@ -1017,10 +1019,12 @@ public class Main {
 
         for (int i = 0; i < hamsterWindows.size(); i++) {
             HamsterWindow w = hamsterWindows.get(i);
+            int wWidth = w.getWidth();
+            int wHeight = w.getHeight();
             int col = i % 3;
             int row = i / 3;
-            int x = baseX - (col + 1) * 85;
-            int y = baseY - (row + 1) * 105;
+            int x = baseX - wWidth - col * 85;
+            int y = baseY - wHeight - row * 105;
             if (x < 0) x = 0;
             if (y < 0) y = 0;
             w.setLocation(x, y);
@@ -1139,6 +1143,7 @@ public class Main {
         });
         popup.setUndecorated(true);
         popup.setAlwaysOnTop(true);
+        UIHelper.addEscapeClose(popup);
 
         JPanel outer = new JPanel(new BorderLayout());
         outer.setBackground(new Color(255, 248, 235));
@@ -1292,6 +1297,7 @@ public class Main {
         });
         popup.setUndecorated(true);
         popup.setAlwaysOnTop(true);
+        UIHelper.addEscapeClose(popup);
 
         JPanel outer = new JPanel(new BorderLayout());
         outer.setBackground(new Color(255, 248, 235));

@@ -24,7 +24,9 @@ public class SettingsDialog {
         // Suspend global hotkeys so they don't intercept key capture
         if (hotkeyManager != null) hotkeyManager.suspend();
 
-        JDialog dialog = new JDialog((Frame) null, "\uC124\uC815", false);
+        Window owner = (parent instanceof Window) ? (Window) parent :
+                (parent != null ? SwingUtilities.getWindowAncestor(parent) : null);
+        JDialog dialog = new JDialog(owner, "\uC124\uC815", Dialog.ModalityType.MODELESS);
         activeInstance = dialog;
         dialog.addWindowListener(new java.awt.event.WindowAdapter() {
             @Override public void windowClosed(java.awt.event.WindowEvent e) { activeInstance = null; }
@@ -32,6 +34,7 @@ public class SettingsDialog {
         dialog.setResizable(false);
         dialog.setIconImages(HamsterIcon.createIcons());
         dialog.setAlwaysOnTop(true);
+        UIHelper.addEscapeClose(dialog);
 
         JPanel panel = new JPanel(new GridBagLayout());
         panel.setBorder(BorderFactory.createEmptyBorder(20, 25, 15, 25));

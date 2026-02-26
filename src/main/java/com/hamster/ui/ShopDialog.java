@@ -57,6 +57,7 @@ public class ShopDialog extends JDialog {
         setDefaultCloseOperation(DISPOSE_ON_CLOSE);
         setResizable(false);
         setIconImages(HamsterIcon.createIcons());
+        UIHelper.addEscapeClose(this);
 
         JPanel mainPanel = new JPanel();
         mainPanel.setLayout(new BoxLayout(mainPanel, BoxLayout.Y_AXIS));

@@ -17,13 +17,16 @@ public class JournalDialog {
             activeInstance.toFront();
             return;
         }
-        JDialog dialog = new JDialog((Frame) null, "\uB3C4\uAC10", false);
+        Window owner = (parent instanceof Window) ? (Window) parent :
+                (parent != null ? SwingUtilities.getWindowAncestor(parent) : null);
+        JDialog dialog = new JDialog(owner, "\uB3C4\uAC10", Dialog.ModalityType.MODELESS);
         activeInstance = dialog;
         dialog.addWindowListener(new java.awt.event.WindowAdapter() {
             @Override public void windowClosed(java.awt.event.WindowEvent e) { activeInstance = null; }
         });
         dialog.setResizable(false);
         dialog.setIconImages(HamsterIcon.createIcons());
+        UIHelper.addEscapeClose(dialog);
 
         JPanel outerPanel = new JPanel();
         outerPanel.setLayout(new BoxLayout(outerPanel, BoxLayout.Y_AXIS));
