@@ -395,13 +395,13 @@ public class Hamster {
 
     // Buff methods
     public double getBuffMultiplier(Buff.Type type) {
-        double mult = 1.0;
+        double sum = 0.0;
         for (Buff b : buffs) {
             if (b.getType() == type) {
-                mult *= b.getMultiplier();
+                sum += (b.getMultiplier() - 1.0);
             }
         }
-        return mult;
+        return Math.max(0.1, 1.0 + sum);
     }
 
     public void addBuff(Buff buff) {

@@ -11,6 +11,7 @@ import com.hamster.model.HamsterColor;
 import com.hamster.model.Personality;
 import com.hamster.model.Poop;
 import com.hamster.model.Settings;
+import com.hamster.model.UITheme;
 import com.hamster.render.HamsterIcon;
 import com.hamster.render.ItemIcon;
 import com.hamster.system.Achievement;
@@ -84,6 +85,7 @@ public class Main {
     private JDialog activeUpgradeDialog = null;
     private JDialog activeFeedPopup = null;
     private JDialog activeEquipPopup = null;
+    private boolean eventInProgress = false;
 
     private final HamsterWindow.ContextMenuCallback contextMenuCallback = new HamsterWindow.ContextMenuCallback() {
         @Override public void onFeed(Hamster h) { onFeedWithFood(h); }
@@ -374,7 +376,7 @@ public class Main {
             public void onEquipAccessory(Hamster h) {
                 onEquipAccessory_(h);
             }
-        }, settings.opacity);
+        }, settings.opacity, settings.theme);
 
         hotkeyManager.setCallback(this::toggleAllWindows);
         hotkeyManager.setSendBackCallback(this::sendBackAllWindows);
@@ -441,9 +443,9 @@ public class Main {
         // Check deaths
         checkDeaths();
 
-        // Random event check (skip when hidden)
+        // Random event check (skip when hidden or event already showing)
         eventTimer++;
-        if (!hidden && eventTimer >= metaProgress.getEventInterval() && !hamsters.isEmpty()) {
+        if (!hidden && !eventInProgress && eventTimer >= metaProgress.getEventInterval() && !hamsters.isEmpty()) {
             eventTimer = 0;
             triggerRandomEvent();
             statistics.totalEventsTriggered++;
@@ -949,6 +951,7 @@ public class Main {
     }
 
     private void triggerRandomEvent() {
+        if (eventInProgress) return;
         // Pick a random living hamster
         Hamster target = null;
         List<Hamster> living = new ArrayList<>();
@@ -958,6 +961,7 @@ public class Main {
         if (living.isEmpty()) return;
         target = living.get(random.nextInt(living.size()));
 
+        eventInProgress = true;
         RandomEvent event = RandomEvent.pickRandom(random);
         boolean choiceA = EventDialog.showEvent(event);
         String result;
@@ -970,6 +974,7 @@ public class Main {
         JOptionPane.showMessageDialog(controlPanel,
                 target.getName() + ": " + result,
                 "\uC774\uBCA4\uD2B8 \uACB0\uACFC", JOptionPane.INFORMATION_MESSAGE);
+        eventInProgress = false;
     }
 
     private void toggleControlPanel() {
@@ -1476,6 +1481,9 @@ public class Main {
     private void onSettingsSaved(Settings newSettings) {
         this.settings = newSettings;
         hotkeyManager.updateHotkeys(newSettings);
+        if (controlPanel != null) {
+            controlPanel.applyTheme(newSettings.theme);
+        }
     }
 
     private float currentOpacity = 1.0f;

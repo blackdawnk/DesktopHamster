@@ -185,6 +185,94 @@ public class SaveManager {
         }
     }
 
+    private static GameState parseGameState(Properties props) {
+        int saveVersion = Integer.parseInt(props.getProperty("saveVersion", "1"));
+        GameLogger.debug("Loading save version " + saveVersion);
+
+        GameState state = new GameState();
+        state.money = clampInt(props.getProperty("money", "0"), 0, Integer.MAX_VALUE);
+        state.totalFrames = Long.parseLong(props.getProperty("totalFrames", "0"));
+        state.hamstersRaised = clampInt(props.getProperty("hamstersRaised", "1"), 1, Integer.MAX_VALUE);
+        state.qualifiedHamsters = clampInt(props.getProperty("qualifiedHamsters", "0"), 0, Integer.MAX_VALUE);
+        state.hamsterPurchaseCount = clampInt(props.getProperty("hamsterPurchaseCount", "0"), 0, Integer.MAX_VALUE);
+
+        int hamsterCount = clampInt(props.getProperty("hamsterCount", "0"), 0, 100);
+        state.hamsters = new ArrayList<>();
+        for (int i = 0; i < hamsterCount; i++) {
+            String prefix = "hamster." + i + ".";
+            GameState.HamsterData hd = new GameState.HamsterData();
+            hd.name = props.getProperty(prefix + "name", "\uD584\uC2A4\uD130");
+            hd.color = safeEnum(HamsterColor.class, props.getProperty(prefix + "color", "BROWN"), HamsterColor.BROWN);
+            hd.hunger = clampInt(props.getProperty(prefix + "hunger", "70"), 0, GameConstants.MAX_STAT_CAP);
+            hd.happiness = clampInt(props.getProperty(prefix + "happiness", "70"), 0, GameConstants.MAX_STAT_CAP);
+            hd.energy = clampInt(props.getProperty(prefix + "energy", "70"), 0, GameConstants.MAX_STAT_CAP);
+            hd.poopTimer = clampInt(props.getProperty(prefix + "poopTimer", "0"), 0, Integer.MAX_VALUE);
+            hd.ageFrames = Long.parseLong(props.getProperty(prefix + "ageFrames", "0"));
+            hd.lifespanFrames = clampInt(props.getProperty(prefix + "lifespanFrames", "225000"), 1, Integer.MAX_VALUE);
+            hd.windowX = Integer.parseInt(props.getProperty(prefix + "windowX", "500"));
+            hd.windowY = Integer.parseInt(props.getProperty(prefix + "windowY", "700"));
+            // Roguelike fields (defaults for backwards compat)
+            hd.generation = clampInt(props.getProperty(prefix + "generation", "1"), 1, Integer.MAX_VALUE);
+            hd.legacyHungerBonus = clampInt(props.getProperty(prefix + "legacyHungerBonus", "0"), 0, 25);
+            hd.legacyHappinessBonus = clampInt(props.getProperty(prefix + "legacyHappinessBonus", "0"), 0, 25);
+            hd.legacyEnergyBonus = clampInt(props.getProperty(prefix + "legacyEnergyBonus", "0"), 0, 25);
+            hd.legacyLifespanBonus = clampInt(props.getProperty(prefix + "legacyLifespanBonus", "0"), 0, Integer.MAX_VALUE);
+            hd.legacyMaxStatBonus = clampInt(props.getProperty(prefix + "legacyMaxStatBonus", "0"), 0, GameConstants.MAX_STAT_CAP - 100);
+            hd.maxHunger = clampInt(props.getProperty(prefix + "maxHunger", "100"), 100, GameConstants.MAX_STAT_CAP);
+            hd.maxHappiness = clampInt(props.getProperty(prefix + "maxHappiness", "100"), 100, GameConstants.MAX_STAT_CAP);
+            hd.maxEnergy = clampInt(props.getProperty(prefix + "maxEnergy", "100"), 100, GameConstants.MAX_STAT_CAP);
+            hd.breedCooldownFrames = clampInt(props.getProperty(prefix + "breedCooldownFrames", "0"), 0, Integer.MAX_VALUE);
+            int buffCount = clampInt(props.getProperty(prefix + "buffCount", "0"), 0, 50);
+            hd.buffs = new java.util.ArrayList<>();
+            for (int j = 0; j < buffCount; j++) {
+                String bp = prefix + "buff." + j + ".";
+                GameState.BuffData bd = new GameState.BuffData();
+                bd.type = safeEnum(Buff.Type.class, props.getProperty(bp + "type", "HUNGER_DRAIN"), Buff.Type.HUNGER_DRAIN);
+                bd.multiplier = Double.parseDouble(props.getProperty(bp + "multiplier", "1.0"));
+                bd.remainingFrames = clampInt(props.getProperty(bp + "remainingFrames", "0"), 0, Integer.MAX_VALUE);
+                bd.description = props.getProperty(bp + "description", "");
+                hd.buffs.add(bd);
+            }
+            // 2.0 fields
+            hd.personality = props.getProperty(prefix + "personality", "CHEERFUL");
+            hd.equippedAccessories = splitList(props.getProperty(prefix + "equippedAccessories", ""));
+            hd.ownedAccessories = splitList(props.getProperty(prefix + "ownedAccessories", ""));
+            state.hamsters.add(hd);
+        }
+
+        int poopCount = clampInt(props.getProperty("poopCount", "0"), 0, 500);
+        state.poops = new ArrayList<>();
+        for (int i = 0; i < poopCount; i++) {
+            String prefix = "poop." + i + ".";
+            GameState.PoopData pd = new GameState.PoopData();
+            pd.screenX = Integer.parseInt(props.getProperty(prefix + "screenX", "0"));
+            pd.screenY = Integer.parseInt(props.getProperty(prefix + "screenY", "0"));
+            state.poops.add(pd);
+        }
+
+        // Food inventory
+        state.foodInventory = FoodInventory.loadFromProperties(props, "inv.");
+
+        return state;
+    }
+
+    private static int clampInt(String value, int min, int max) {
+        try {
+            int v = Integer.parseInt(value);
+            return Math.max(min, Math.min(max, v));
+        } catch (NumberFormatException e) {
+            return min;
+        }
+    }
+
+    private static <T extends Enum<T>> T safeEnum(Class<T> enumType, String value, T defaultValue) {
+        try {
+            return Enum.valueOf(enumType, value);
+        } catch (IllegalArgumentException e) {
+            return defaultValue;
+        }
+    }
+
     private static String joinList(java.util.List<String> list) {
         StringBuilder sb = new StringBuilder();
         for (String s : list) {
@@ -238,74 +326,25 @@ public class SaveManager {
             }
         }
 
-        int saveVersion = Integer.parseInt(props.getProperty("saveVersion", "1"));
-        GameLogger.debug("Loading save version " + saveVersion);
-
-        GameState state = new GameState();
-        state.money = Integer.parseInt(props.getProperty("money", "0"));
-        state.totalFrames = Long.parseLong(props.getProperty("totalFrames", "0"));
-        state.hamstersRaised = Integer.parseInt(props.getProperty("hamstersRaised", "1"));
-        state.qualifiedHamsters = Integer.parseInt(props.getProperty("qualifiedHamsters", "0"));
-        state.hamsterPurchaseCount = Integer.parseInt(props.getProperty("hamsterPurchaseCount", "0"));
-
-        int hamsterCount = Integer.parseInt(props.getProperty("hamsterCount", "0"));
-        state.hamsters = new ArrayList<>();
-        for (int i = 0; i < hamsterCount; i++) {
-            String prefix = "hamster." + i + ".";
-            GameState.HamsterData hd = new GameState.HamsterData();
-            hd.name = props.getProperty(prefix + "name", "\uD584\uC2A4\uD130");
-            hd.color = HamsterColor.valueOf(props.getProperty(prefix + "color", "BROWN"));
-            hd.hunger = Integer.parseInt(props.getProperty(prefix + "hunger", "70"));
-            hd.happiness = Integer.parseInt(props.getProperty(prefix + "happiness", "70"));
-            hd.energy = Integer.parseInt(props.getProperty(prefix + "energy", "70"));
-            hd.poopTimer = Integer.parseInt(props.getProperty(prefix + "poopTimer", "0"));
-            hd.ageFrames = Long.parseLong(props.getProperty(prefix + "ageFrames", "0"));
-            hd.lifespanFrames = Integer.parseInt(props.getProperty(prefix + "lifespanFrames", "225000"));
-            hd.windowX = Integer.parseInt(props.getProperty(prefix + "windowX", "500"));
-            hd.windowY = Integer.parseInt(props.getProperty(prefix + "windowY", "700"));
-            // Roguelike fields (defaults for backwards compat)
-            hd.generation = Integer.parseInt(props.getProperty(prefix + "generation", "1"));
-            hd.legacyHungerBonus = Integer.parseInt(props.getProperty(prefix + "legacyHungerBonus", "0"));
-            hd.legacyHappinessBonus = Integer.parseInt(props.getProperty(prefix + "legacyHappinessBonus", "0"));
-            hd.legacyEnergyBonus = Integer.parseInt(props.getProperty(prefix + "legacyEnergyBonus", "0"));
-            hd.legacyLifespanBonus = Integer.parseInt(props.getProperty(prefix + "legacyLifespanBonus", "0"));
-            hd.legacyMaxStatBonus = Integer.parseInt(props.getProperty(prefix + "legacyMaxStatBonus", "0"));
-            hd.maxHunger = Integer.parseInt(props.getProperty(prefix + "maxHunger", "100"));
-            hd.maxHappiness = Integer.parseInt(props.getProperty(prefix + "maxHappiness", "100"));
-            hd.maxEnergy = Integer.parseInt(props.getProperty(prefix + "maxEnergy", "100"));
-            hd.breedCooldownFrames = Integer.parseInt(props.getProperty(prefix + "breedCooldownFrames", "0"));
-            int buffCount = Integer.parseInt(props.getProperty(prefix + "buffCount", "0"));
-            hd.buffs = new java.util.ArrayList<>();
-            for (int j = 0; j < buffCount; j++) {
-                String bp = prefix + "buff." + j + ".";
-                GameState.BuffData bd = new GameState.BuffData();
-                bd.type = Buff.Type.valueOf(props.getProperty(bp + "type", "HUNGER_DRAIN"));
-                bd.multiplier = Double.parseDouble(props.getProperty(bp + "multiplier", "1.0"));
-                bd.remainingFrames = Integer.parseInt(props.getProperty(bp + "remainingFrames", "0"));
-                bd.description = props.getProperty(bp + "description", "");
-                hd.buffs.add(bd);
+        try {
+            return parseGameState(props);
+        } catch (Exception e) {
+            GameLogger.error("Corrupted save data, attempting backup: " + path, e);
+            // Try loading from backup
+            File backup = new File(path + ".bak");
+            if (backup.exists()) {
+                Properties backupProps = new Properties();
+                try (FileInputStream bfis = new FileInputStream(backup)) {
+                    backupProps.load(bfis);
+                    GameState backupState = parseGameState(backupProps);
+                    GameLogger.info("Successfully loaded from backup");
+                    return backupState;
+                } catch (Exception e2) {
+                    GameLogger.error("Backup also corrupted", e2);
+                }
             }
-            // 2.0 fields
-            hd.personality = props.getProperty(prefix + "personality", "CHEERFUL");
-            hd.equippedAccessories = splitList(props.getProperty(prefix + "equippedAccessories", ""));
-            hd.ownedAccessories = splitList(props.getProperty(prefix + "ownedAccessories", ""));
-            state.hamsters.add(hd);
+            return null;
         }
-
-        int poopCount = Integer.parseInt(props.getProperty("poopCount", "0"));
-        state.poops = new ArrayList<>();
-        for (int i = 0; i < poopCount; i++) {
-            String prefix = "poop." + i + ".";
-            GameState.PoopData pd = new GameState.PoopData();
-            pd.screenX = Integer.parseInt(props.getProperty(prefix + "screenX", "0"));
-            pd.screenY = Integer.parseInt(props.getProperty(prefix + "screenY", "0"));
-            state.poops.add(pd);
-        }
-
-        // Food inventory
-        state.foodInventory = FoodInventory.loadFromProperties(props, "inv.");
-
-        return state;
     }
 
 }

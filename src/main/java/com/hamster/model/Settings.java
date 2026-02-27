@@ -26,6 +26,9 @@ public class Settings {
     // Opacity (20~100)
     public int opacity = 100;
 
+    // UI Theme
+    public UITheme theme = UITheme.CLASSIC;
+
     // Windows API modifier constants
     public static final int MOD_ALT = 0x0001;
     public static final int MOD_CTRL = 0x0002;
@@ -43,6 +46,7 @@ public class Settings {
         props.setProperty("panelToggleModifier", String.valueOf(panelToggleModifier));
         props.setProperty("panelToggleKeyCode", String.valueOf(panelToggleKeyCode));
         props.setProperty("opacity", String.valueOf(opacity));
+        props.setProperty("theme", theme.name());
 
         try (FileOutputStream fos = new FileOutputStream(SETTINGS_FILE)) {
             props.store(fos, "DesktopHamster Settings");
@@ -71,6 +75,11 @@ public class Settings {
         s.panelToggleModifier = Integer.parseInt(props.getProperty("panelToggleModifier", String.valueOf(MOD_ALT)));
         s.panelToggleKeyCode = Integer.parseInt(props.getProperty("panelToggleKeyCode", "69"));
         s.opacity = Integer.parseInt(props.getProperty("opacity", "100"));
+        try {
+            s.theme = UITheme.valueOf(props.getProperty("theme", "CLASSIC"));
+        } catch (IllegalArgumentException e) {
+            s.theme = UITheme.CLASSIC;
+        }
         return s;
     }
 

@@ -1,5 +1,6 @@
 package com.hamster.ui;
 import com.hamster.model.Settings;
+import com.hamster.model.UITheme;
 import com.hamster.render.HamsterIcon;
 import com.hamster.system.GlobalHotkeyManager;
 
@@ -89,8 +90,61 @@ public class SettingsDialog {
         helpLabel.setForeground(new Color(150, 130, 100));
         panel.add(helpLabel, gbc);
 
+        // Theme section
+        gbc.gridx = 0; gbc.gridy = 6; gbc.gridwidth = 2;
+        gbc.insets = new Insets(4, 0, 8, 0);
+        gbc.anchor = GridBagConstraints.WEST;
+        JLabel themeTitle = new JLabel("UI \uD14C\uB9C8");
+        themeTitle.setFont(new Font(FONT_NAME, Font.BOLD, 14));
+        themeTitle.setForeground(new Color(100, 70, 30));
+        panel.add(themeTitle, gbc);
+
+        gbc.gridy = 7; gbc.gridwidth = 1;
+        gbc.insets = new Insets(0, 0, 10, 10);
+        gbc.anchor = GridBagConstraints.EAST;
+        gbc.gridx = 0;
+        JLabel themeLabel = new JLabel("\uD14C\uB9C8:");
+        themeLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 13));
+        panel.add(themeLabel, gbc);
+
+        gbc.gridx = 1;
+        gbc.anchor = GridBagConstraints.WEST;
+        gbc.insets = new Insets(0, 0, 10, 0);
+        final JComboBox<String> themeCombo = new JComboBox<String>();
+        for (UITheme t : UITheme.values()) {
+            themeCombo.addItem(t.getDisplayName());
+        }
+        themeCombo.setSelectedIndex(settings.theme.ordinal());
+        themeCombo.setFont(new Font(FONT_NAME, Font.PLAIN, 13));
+        themeCombo.setPreferredSize(new Dimension(160, 28));
+
+        // Preview swatch
+        final JPanel previewPanel = new JPanel();
+        previewPanel.setPreferredSize(new Dimension(160, 24));
+        previewPanel.setBorder(BorderFactory.createLineBorder(settings.theme.border, 1, true));
+        previewPanel.setBackground(settings.theme.bg);
+        JLabel previewText = new JLabel("Aa");
+        previewText.setFont(new Font(FONT_NAME, Font.BOLD, 12));
+        previewText.setForeground(settings.theme.textPrimary);
+        previewPanel.add(previewText);
+
+        themeCombo.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                UITheme selected = UITheme.values()[themeCombo.getSelectedIndex()];
+                previewPanel.setBackground(selected.bg);
+                previewPanel.setBorder(BorderFactory.createLineBorder(selected.border, 1, true));
+                previewText.setForeground(selected.textPrimary);
+            }
+        });
+        panel.add(themeCombo, gbc);
+
+        gbc.gridy = 8; gbc.gridx = 1;
+        gbc.insets = new Insets(0, 0, 10, 0);
+        panel.add(previewPanel, gbc);
+
         // Save / Cancel buttons
-        gbc.gridy = 6; gbc.gridwidth = 2;
+        gbc.gridy = 9; gbc.gridwidth = 2;
         gbc.insets = new Insets(0, 0, 0, 0);
         gbc.anchor = GridBagConstraints.CENTER;
         JPanel btnPanel = new JPanel(new FlowLayout(FlowLayout.CENTER, 10, 0));
@@ -107,6 +161,7 @@ public class SettingsDialog {
             settings.sendBackKeyCode = sendBackKey[0];
             settings.panelToggleModifier = panelMod[0];
             settings.panelToggleKeyCode = panelKey[0];
+            settings.theme = UITheme.values()[themeCombo.getSelectedIndex()];
             settings.save();
             // Resume hotkeys with new settings
             if (hotkeyManager != null) hotkeyManager.resume(settings);

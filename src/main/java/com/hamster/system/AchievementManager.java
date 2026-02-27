@@ -41,25 +41,33 @@ public class AchievementManager {
         check(newlyUnlocked, Achievement.FIRST_HAMSTER, hamstersRaised >= 1);
         check(newlyUnlocked, Achievement.FIVE_HAMSTERS, hamstersRaised >= 5);
         check(newlyUnlocked, Achievement.TEN_HAMSTERS, hamstersRaised >= 10);
+        check(newlyUnlocked, Achievement.FIFTY_HAMSTERS, hamstersRaised >= 50);
         check(newlyUnlocked, Achievement.THREE_GENERATIONS, maxGeneration >= 3);
         check(newlyUnlocked, Achievement.TEN_GENERATIONS, maxGeneration >= 10);
+        check(newlyUnlocked, Achievement.FIFTY_GENERATIONS, maxGeneration >= 50);
 
         check(newlyUnlocked, Achievement.FIVE_HUNDRED_COINS, totalCoinsEarned >= 500);
         check(newlyUnlocked, Achievement.FIVE_THOUSAND_COINS, totalCoinsEarned >= 5000);
+        check(newlyUnlocked, Achievement.FIFTY_THOUSAND_COINS, totalCoinsEarned >= 50000);
 
         // Check max stat (uses persistent flag)
         check(newlyUnlocked, Achievement.MAX_STAT, maxStatReached);
 
         check(newlyUnlocked, Achievement.SURVIVE_30, longestLifespanDays >= 30);
         check(newlyUnlocked, Achievement.SURVIVE_50, longestLifespanDays >= 50);
+        check(newlyUnlocked, Achievement.SURVIVE_100, longestLifespanDays >= 100);
 
         check(newlyUnlocked, Achievement.POOP_50, totalPoopsCleaned >= 50);
         check(newlyUnlocked, Achievement.POOP_200, totalPoopsCleaned >= 200);
+        check(newlyUnlocked, Achievement.POOP_1000, totalPoopsCleaned >= 1000);
         check(newlyUnlocked, Achievement.EVENT_20, totalEventsTriggered >= 20);
         check(newlyUnlocked, Achievement.EVENT_100, totalEventsTriggered >= 100);
+        check(newlyUnlocked, Achievement.EVENT_500, totalEventsTriggered >= 500);
         check(newlyUnlocked, Achievement.BREED_5, totalBreeds >= 5);
         check(newlyUnlocked, Achievement.BREED_20, totalBreeds >= 20);
+        check(newlyUnlocked, Achievement.BREED_100, totalBreeds >= 100);
         check(newlyUnlocked, Achievement.PLAY_100, totalPlays >= 100);
+        check(newlyUnlocked, Achievement.PLAY_500, totalPlays >= 500);
 
         check(newlyUnlocked, Achievement.ALL_COLORS, colorsSeen.size() >= HamsterColor.values().length);
         check(newlyUnlocked, Achievement.ALL_FOODS, foodsTried.size() >= FoodItem.values().length);
@@ -73,6 +81,7 @@ public class AchievementManager {
         check(newlyUnlocked, Achievement.EARLY_BIRD, hour == 6);
 
         check(newlyUnlocked, Achievement.INTERACTION_50, totalInteractions >= 50);
+        check(newlyUnlocked, Achievement.INTERACTION_200, totalInteractions >= 200);
 
         return newlyUnlocked;
     }
