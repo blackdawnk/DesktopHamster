@@ -15,7 +15,7 @@ import java.util.List;
 public class ControlPanel extends JFrame {
 
     private static final String FONT_NAME = "Noto Sans KR";
-    public static final String VERSION = "2.1.8";
+    public static final String VERSION = "2.1.9";
 
     /** Wraps emoji characters in HTML with Segoe UI Emoji font for proper rendering. */
     public static String wrapEmoji(String text) {
@@ -124,9 +124,9 @@ public class ControlPanel extends JFrame {
         setVisible(true);
     }
 
-    private static final int F_TITLE = 9;
-    private static final int F_LABEL = 8;
-    private static final int F_BTN = 8;
+    private static final int F_TITLE = 14;
+    private static final int F_LABEL = 12;
+    private static final int F_BTN = 12;
 
     private void buildUI() {
         mainPanel.removeAll();
@@ -175,7 +175,7 @@ public class ControlPanel extends JFrame {
         currencyPanel.add(currRow, BorderLayout.CENTER);
 
         JButton settingsBtn = new JButton(wrapEmoji("\u2699"));
-        settingsBtn.setFont(new Font(FONT_NAME, Font.PLAIN, 10));
+        settingsBtn.setFont(new Font(FONT_NAME, Font.PLAIN, 15));
         settingsBtn.setBackground(currentTheme.buttonBg);
         settingsBtn.setBorder(BorderFactory.createCompoundBorder(
                 BorderFactory.createLineBorder(currentTheme.buttonBorder, 1, true),
@@ -253,13 +253,13 @@ public class ControlPanel extends JFrame {
         });
         opacitySlider.addChangeListener(e -> callbacks.onOpacityChanged(opacitySlider.getValue() / 100f));
         JLabel opLabel = new JLabel("\uD22C\uBA85");
-        opLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 7));
+        opLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 11));
         opLabel.setForeground(currentTheme.textSecondary);
         opacityPanel.add(opLabel);
         opacityPanel.add(opacitySlider);
 
         JLabel versionLabel = new JLabel(VERSION);
-        versionLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 7));
+        versionLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 11));
         versionLabel.setForeground(currentTheme.buttonBorder);
         opacityPanel.add(versionLabel);
         mainPanel.add(opacityPanel);
@@ -453,16 +453,16 @@ public class ControlPanel extends JFrame {
 
             String pName = hamster.getPersonality() != null ? hamster.getPersonality().getDisplayName() : "";
             infoLabel = new JLabel(pName + " | \uB300\uAE30");
-            infoLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 7));
+            infoLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 11));
             infoLabel.setForeground(currentTheme.textSecondary);
 
             legacyLabel = new JLabel("");
-            legacyLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 7));
+            legacyLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 11));
             legacyLabel.setForeground(currentTheme.accent);
             legacyLabel.setVisible(false);
 
             buffLabel = new JLabel("");
-            buffLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 7));
+            buffLabel.setFont(new Font(FONT_NAME, Font.PLAIN, 11));
             buffLabel.setForeground(new Color(60, 100, 160));
             buffLabel.setVisible(false);
 
@@ -479,7 +479,7 @@ public class ControlPanel extends JFrame {
             bar.setBackground(new Color(240, 240, 240));
             bar.setPreferredSize(new Dimension(90, 12));
             bar.setMaximumSize(new Dimension(Short.MAX_VALUE, 12));
-            bar.setFont(new Font(FONT_NAME, Font.BOLD, 7));
+            bar.setFont(new Font(FONT_NAME, Font.BOLD, 11));
             bar.setUI(new javax.swing.plaf.basic.BasicProgressBarUI() {
                 @Override protected Color getSelectionForeground() { return new Color(50, 30, 10); }
                 @Override protected Color getSelectionBackground() { return new Color(80, 60, 40); }
@@ -493,7 +493,7 @@ public class ControlPanel extends JFrame {
 
     private JButton createWindowButton(String symbol, Color color) {
         JButton btn = new JButton(symbol);
-        btn.setFont(new Font("SansSerif", Font.BOLD, 9));
+        btn.setFont(new Font("SansSerif", Font.BOLD, 14));
         btn.setFocusPainted(false);
         btn.setContentAreaFilled(false);
         btn.setBorder(BorderFactory.createEmptyBorder(1, 3, 1, 3));
@@ -508,7 +508,7 @@ public class ControlPanel extends JFrame {
         p.setAlignmentX(Component.LEFT_ALIGNMENT);
         p.setMaximumSize(new Dimension(Short.MAX_VALUE, 14));
         JLabel l = new JLabel(label);
-        l.setFont(new Font(FONT_NAME, Font.PLAIN, 7));
+        l.setFont(new Font(FONT_NAME, Font.PLAIN, 11));
         l.setForeground(currentTheme.textPrimary);
         p.add(l, BorderLayout.WEST);
         p.add(bar, BorderLayout.CENTER);
