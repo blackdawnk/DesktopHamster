@@ -15,7 +15,7 @@ import java.util.List;
 public class ControlPanel extends JFrame {
 
     private static final String FONT_NAME = "Noto Sans KR";
-    public static final String VERSION = "2.1.9";
+    public static final String VERSION = "2.2.0";
 
     /** Wraps emoji characters in HTML with Segoe UI Emoji font for proper rendering. */
     public static String wrapEmoji(String text) {

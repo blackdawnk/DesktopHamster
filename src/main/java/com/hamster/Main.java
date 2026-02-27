@@ -1015,15 +1015,20 @@ public class Main {
     }
 
     private void killAllHamsters() {
-        if (hamsters.isEmpty()) return;
-        int confirm = JOptionPane.showConfirmDialog(controlPanel,
-                "\uC815\uB9D0\uB85C \uBAA8\uB4E0 \uD584\uC2A4\uD130\uB97C \uBCF4\uB0B4\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n\uAC8C\uC784\uC774 \uC989\uC2DC \uC885\uB8CC\uB429\uB2C8\uB2E4.",
-                "\uC804\uCCB4 \uC0AD\uC81C", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
+        String msg = hamsters.isEmpty()
+                ? "\uAC8C\uC784\uC744 \uD3EC\uAE30\uD558\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n\uAC8C\uC784\uC774 \uC989\uC2DC \uC885\uB8CC\uB429\uB2C8\uB2E4."
+                : "\uC815\uB9D0\uB85C \uBAA8\uB4E0 \uD584\uC2A4\uD130\uB97C \uBCF4\uB0B4\uC2DC\uACA0\uC2B5\uB2C8\uAE4C?\n\uAC8C\uC784\uC774 \uC989\uC2DC \uC885\uB8CC\uB429\uB2C8\uB2E4.";
+        int confirm = JOptionPane.showConfirmDialog(controlPanel, msg,
+                "\uAC8C\uC784 \uD3EC\uAE30", JOptionPane.YES_NO_OPTION, JOptionPane.WARNING_MESSAGE);
         if (confirm != JOptionPane.YES_OPTION) return;
-        for (Hamster h : hamsters) {
-            h.kill();
+        if (hamsters.isEmpty()) {
+            gameOver();
+        } else {
+            for (Hamster h : hamsters) {
+                h.kill();
+            }
+            // checkDeaths in next gameLoop tick will handle the rest
         }
-        // checkDeaths in next gameLoop tick will handle the rest
     }
 
     private void gatherAllHamsters() {
